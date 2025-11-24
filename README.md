@@ -38,6 +38,8 @@ Master-Projekt zur Identifikation von Bitcoin-Whales durch Entity Resolution auf
 
 ## Notebook Workflow
 
+Die folgende Übersicht zeigt die 4 Hauptnotebooks und deren Zweck. Für technische Details siehe [NOTEBOOK_WORKFLOW.md](docs/NOTEBOOK_WORKFLOW.md).
+
 ### 01 - Data Exploration [Abgeschlossen]
 
 **Zweck:** Verständnis der Bitcoin-Datenstruktur und Validierung des UTXO-Modells
