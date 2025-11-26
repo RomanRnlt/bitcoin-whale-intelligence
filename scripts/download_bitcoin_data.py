@@ -17,7 +17,8 @@ import sys
 import gzip
 import shutil
 import json
-import requests
+import urllib.request
+import urllib.error
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Tuple, List, Optional
@@ -121,14 +122,15 @@ class BlockchairDownloader:
                      progress_callback=None) -> bool:
         """Download single file with progress tracking and pause support."""
         try:
-            response = requests.get(url, stream=True, timeout=60)
-            response.raise_for_status()
+            # Use urllib instead of requests
+            req = urllib.request.Request(url)
+            response = urllib.request.urlopen(req, timeout=60)
 
-            total_size = int(response.headers.get('content-length', 0))
+            total_size = int(response.headers.get('Content-Length', 0))
             downloaded = 0
 
             with open(output_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
+                while True:
                     # Check for pause/cancel
                     if self.cancelled:
                         return False
@@ -139,6 +141,11 @@ class BlockchairDownloader:
                     if self.cancelled:
                         return False
 
+                    # Read chunk
+                    chunk = response.read(8192)
+                    if not chunk:
+                        break
+
                     f.write(chunk)
                     downloaded += len(chunk)
 
@@ -148,8 +155,8 @@ class BlockchairDownloader:
 
             return True
 
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
                 return False  # File doesn't exist (normal)
             raise
         except Exception as e:
