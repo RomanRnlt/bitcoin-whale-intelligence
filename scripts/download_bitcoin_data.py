@@ -510,6 +510,7 @@ class DownloaderGUI:
                     start_date = state.get('start_date')
                     end_date = state.get('end_date')
                     tables = state.get('tables')
+                    remove_gz = state.get('remove_gz', True)  # Default True
 
                     if output_dir and start_date and end_date and tables:
                         answer = messagebox.askyesno(
@@ -517,7 +518,8 @@ class DownloaderGUI:
                             f"Found incomplete download:\n\n"
                             f"Location: {output_dir}\n"
                             f"Period: {start_date} to {end_date}\n"
-                            f"Tables: {', '.join(tables)}\n\n"
+                            f"Tables: {', '.join(tables)}\n"
+                            f"Remove .gz: {remove_gz}\n\n"
                             f"Resume this download?"
                         )
 
@@ -531,7 +533,13 @@ class DownloaderGUI:
                             self.table_transactions.set('transactions' in tables)
                             self.table_outputs.set('outputs' in tables)
 
+                            # Set remove_gz option
+                            self.remove_gz.set(remove_gz)
+
                             self.log(f"✓ Loaded previous download configuration")
+                            self.log(f"  Period: {start_date} to {end_date}")
+                            self.log(f"  Tables: {', '.join(tables)}")
+                            self.log(f"  Remove .gz: {remove_gz}")
                             self.log(f"  Files that already exist will be skipped automatically")
                             return
                 except:
