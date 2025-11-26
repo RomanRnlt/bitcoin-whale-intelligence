@@ -1,85 +1,122 @@
-# Blockchair Data Scripts
+# Bitcoin Blockchain Data Scripts
 
-Automatisierter Download und Integration von Blockchair Bitcoin Blockchain Dumps.
-
-## 📥 Download Script
-
-### Installation
-
-```bash
-pip install requests tqdm
-```
-
-### Verwendung
-
-**Komplettes Jahr herunterladen (empfohlen: 2021):**
-```bash
-python scripts/download_blockchair.py \
-  --year 2021 \
-  --output /Volumes/MySSD/bitcoin_data \
-  --remove-gz
-```
-
-**Nur ein Monat:**
-```bash
-python scripts/download_blockchair.py \
-  --year 2021 \
-  --month 1 \
-  --output /Volumes/MySSD/bitcoin_data
-```
-
-**Spezifischer Zeitraum:**
-```bash
-python scripts/download_blockchair.py \
-  --date-range 2021-01-01 2021-03-31 \
-  --output /Volumes/MySSD/bitcoin_data
-```
-
-**Nur spezifische Tabellen:**
-```bash
-python scripts/download_blockchair.py \
-  --year 2021 \
-  --tables transactions outputs \
-  --output /Volumes/MySSD/bitcoin_data
-```
-
-### Optionen
-
-- `--no-extract`: Nur download, keine Extraktion (schneller, aber .gz bleibt)
-- `--remove-gz`: .gz nach Extraktion löschen (spart ~70% Speicher)
-- `--sequential`: Sequenziell statt parallel (langsamer, aber stabiler)
-- `--workers N`: Anzahl paralleler Downloads (default: 4)
-
-### Speicherplatz-Abschätzung
-
-**Jahr 2021:**
-- Komprimiert (.gz): ~120-150 GB
-- Unkomprimiert (.tsv): ~450-550 GB
-- Mit `--remove-gz`: ~450-550 GB total
-- Ohne `--remove-gz`: ~600-700 GB total
-
-**Monat 2021:**
-- Komprimiert: ~10-15 GB
-- Unkomprimiert: ~40-50 GB
+Tools zum Download und Laden von Bitcoin Blockchain-Daten.
 
 ---
 
-## 📊 Data Loader Script
+## 📥 Download Tool (GUI)
 
-### Verwendung in Python/Notebook
+### Verwendung
 
+**Starte die GUI:**
+```bash
+python scripts/download_bitcoin_data.py
+```
+
+### Features
+
+✅ **User-friendly GUI**
+- Grafische Oberfläche (macOS, Windows, Linux)
+- Kein Command-Line-Wissen nötig
+- Intuitive Bedienung
+
+✅ **Pause/Resume**
+- Download jederzeit pausieren
+- GUI schließen und später fortsetzen
+- Automatische Erkennung unvollständiger Downloads
+
+✅ **State Persistence**
+- Speichert Konfiguration in `.download_state.json`
+- Merkt sich: Pfad, Zeitraum, Tabellen, Einstellungen
+- Auto-Resume beim nächsten Start
+
+✅ **Fortschrittsanzeige**
+- Overall Progress: "File 23/365 (6.3%)"
+- Current File Progress: "45.2% (67.8/150 MB)"
+- ETA Berechnung: "Verbleibende Zeit: 2h 35m"
+
+✅ **Failsafe**
+- Bereits heruntergeladene Files werden übersprungen
+- Kein Datenverlust bei Abbruch
+- Kann jederzeit fortgesetzt werden
+
+### Workflow
+
+1. **GUI starten**
+   ```bash
+   python scripts/download_bitcoin_data.py
+   ```
+
+2. **Konfigurieren**
+   - Output Directory wählen (z.B. `/Volumes/MySSD/bitcoin_data`)
+   - Zeitraum eingeben (z.B. `2021-01-01` bis `2021-12-31`)
+   - Tabellen auswählen (blocks, transactions, outputs)
+   - "Calculate Size" klicken → Größe prüfen
+
+3. **Download starten**
+   - "Start Download" klicken
+   - Optional: Pausieren mit "Pause" Button
+   - Optional: GUI schließen und später fortsetzen
+
+4. **Auto-Resume**
+   - GUI neu starten
+   - Popup: "Resume Download? Yes/No"
+   - Klick auf "Yes" → Weitermachen wo du aufgehört hast
+
+### Speicherplatz-Abschätzung
+
+| Zeitraum | Größe (unkomprimiert) |
+|----------|----------------------|
+| 1 Tag    | ~1.3 GB              |
+| 1 Woche  | ~9 GB                |
+| 1 Monat  | ~40 GB               |
+| Q1 2021  | ~120 GB              |
+| Jahr 2021| ~480 GB              |
+
+**Hinweis:** .gz-Files werden standardmäßig nach Extraktion gelöscht (spart ~70% Platz)
+
+---
+
+## 📊 Data Loader (Python Library)
+
+### Installation
+
+Der Loader ist bereits Teil des Projekts:
 ```python
-from scripts.load_blockchair_data import BlockchairDataLoader
+from src.loaders.blockchair import BlockchairDataLoader
+```
+
+### Verwendung in Notebooks
+
+**Einfachste Methode (empfohlen):**
+```python
+from src.data_config import DataConfig, load_data
+
+# Config
+config = DataConfig(source="local")  # Auto-detect Pfad
+
+# Daten laden
+df = load_data(config, "2021-01-01", "2021-01-07", spark=spark)
+df.show()
+```
+
+**Direkte Loader-Verwendung:**
+```python
+from src.loaders.blockchair import BlockchairDataLoader
 
 # Initialisiere Loader
 loader = BlockchairDataLoader("/Volumes/MySSD/bitcoin_data/extracted")
 
-# Lade Transaktionen für eine Woche
+# Lade Transaktionen
 df_transactions = loader.load_transactions("2021-01-01", "2021-01-07")
 df_transactions.show()
 
-# Lade Multi-Input-Transaktionen (für Entity-Clustering)
-df_multi = loader.get_multi_input_transactions("2021-01-01", "2021-01-07")
+# Lade nur Multi-Input-Transaktionen (für Entity-Clustering)
+df_multi = loader.get_multi_input_transactions(
+    "2021-01-01", "2021-01-07",
+    min_inputs=2,
+    max_inputs=50
+)
 print(f"Multi-Input Transactions: {df_multi.count():,}")
 
 # Lade Outputs (UTXOs)
@@ -109,133 +146,52 @@ spark.sql("""
 """).show()
 ```
 
-### Alle Daten auf einmal laden
-
-```python
-from scripts.load_blockchair_data import load_blockchair_data
-
-data = load_blockchair_data(
-    data_dir="/Volumes/MySSD/bitcoin_data/extracted",
-    start_date="2021-01-01",
-    end_date="2021-01-07"
-)
-
-df_blocks = data['blocks']
-df_transactions = data['transactions']
-df_outputs = data['outputs']
-```
-
 ---
 
-## 🔄 Integration mit bestehendem Projekt
+## 🔄 Integration mit Notebooks
 
-### 1. Verzeichnisstruktur nach Download
+### Datenquellen-Switching
+
+In deinen Notebooks kannst du einfach zwischen 3 Datenquellen wechseln:
+
+```python
+from src.data_config import DataConfig, load_data
+
+# WÄHLE EINE OPTION:
+
+# Option 1: Demo-Daten (klein, schnell, kein Setup)
+config = DataConfig(source="demo")
+
+# Option 2: BigQuery (Cloud, vollständig)
+config = DataConfig(source="bigquery")
+
+# Option 3: Lokale Blockchair-Daten (heruntergeladen)
+config = DataConfig(source="local")  # Auto-detect Pfad
+# Oder manuell:
+# config = DataConfig(source="local", local_data_path="/Volumes/MySSD/bitcoin_data/extracted")
+
+# Daten laden (funktioniert mit allen 3 Quellen!)
+df = load_data(config, "2021-01-01", "2021-01-07", spark=spark)
+```
+
+### Verzeichnisstruktur nach Download
 
 ```
 /Volumes/MySSD/bitcoin_data/
-├── raw/                          # .gz Dateien (optional, mit --remove-gz gelöscht)
+├── raw/                          # .gz Dateien (wird automatisch gelöscht)
 │   ├── blocks/
 │   ├── transactions/
 │   └── outputs/
-└── extracted/                    # .tsv Dateien (werden geladen)
-    ├── blocks/
-    │   ├── blockchair_bitcoin_blocks_2021-01-01.tsv
-    │   ├── blockchair_bitcoin_blocks_2021-01-02.tsv
-    │   └── ...
-    ├── transactions/
-    │   ├── blockchair_bitcoin_transactions_2021-01-01.tsv
-    │   └── ...
-    └── outputs/
-        ├── blockchair_bitcoin_outputs_2021-01-01.tsv
-        └── ...
-```
-
-### 2. In Notebooks verwenden
-
-Siehe `notebooks/02_local_data_exploration.ipynb` (neu erstellt) für vollständiges Beispiel.
-
-**Kurz-Version:**
-
-```python
-# Am Anfang des Notebooks
-from scripts.load_blockchair_data import BlockchairDataLoader
-
-# Pfad zu deiner SSD
-DATA_DIR = "/Volumes/MySSD/bitcoin_data/extracted"
-
-# Loader initialisieren
-loader = BlockchairDataLoader(DATA_DIR)
-
-# Daten laden
-df = loader.load_transactions("2021-01-01", "2021-01-07")
-```
-
-### 3. Switching zwischen Datenquellen
-
-Du kannst jetzt in deinen Notebooks zwischen 3 Modi wählen:
-
-```python
-# Option 1: Demo-Daten (klein, schnell)
-USE_DEMO = True
-
-# Option 2: BigQuery (Cloud, vollständig)
-USE_BIGQUERY = True
-USE_DEMO = False
-
-# Option 3: Lokale Blockchair-Daten (SSD, 2021 nur)
-USE_BLOCKCHAIR = True
-USE_DEMO = False
-USE_BIGQUERY = False
-
-if USE_DEMO:
-    # Demo-Daten aus Code
-    df = create_demo_data()
-elif USE_BIGQUERY:
-    # BigQuery
-    df = client.query(query).to_dataframe()
-elif USE_BLOCKCHAIR:
-    # Lokale Daten
-    loader = BlockchairDataLoader("/Volumes/MySSD/bitcoin_data/extracted")
-    df = loader.load_transactions("2021-01-01", "2021-01-07")
-```
-
----
-
-## 🚀 Quick Start Guide
-
-### Schritt 1: Download Daten
-
-```bash
-# Terminal öffnen, zu Projekt navigieren
-cd /Users/roman/spark_project/bitcoin-whale-intelligence
-
-# Jahr 2021 herunterladen (dauert 2-4 Stunden je nach Internet)
-python scripts/download_blockchair.py \
-  --year 2021 \
-  --output /Volumes/MySSD/bitcoin_data \
-  --remove-gz \
-  --workers 6
-```
-
-**Tipp:** Mit `--workers 6` kannst du mehr parallel laden (wenn dein Internet schnell ist).
-
-### Schritt 2: Daten testen
-
-```bash
-# Test ob Daten korrekt geladen werden können
-python scripts/load_blockchair_data.py \
-  --data-dir /Volumes/MySSD/bitcoin_data/extracted \
-  --start-date 2021-01-01 \
-  --end-date 2021-01-01
-```
-
-### Schritt 3: In Notebook verwenden
-
-```bash
-# Jupyter starten
-./start_project.sh
-
-# Dann neues Notebook öffnen: notebooks/02_local_data_exploration.ipynb
+├── extracted/                    # .tsv Dateien (werden geladen) ⭐
+│   ├── blocks/
+│   │   ├── blockchair_bitcoin_blocks_2021-01-01.tsv
+│   │   └── ...
+│   ├── transactions/
+│   │   ├── blockchair_bitcoin_transactions_2021-01-01.tsv
+│   │   └── ...
+│   └── outputs/
+│       └── ...
+└── .download_state.json          # State für Resume (automatisch)
 ```
 
 ---
@@ -243,117 +199,100 @@ python scripts/load_blockchair_data.py \
 ## 📌 Warum Jahr 2021?
 
 **Bull Run Peak:**
-- Bitcoin erreichte All-Time-High (~$69k im November)
-- Extreme Whale-Aktivität während Preisbewegungen
+- Bitcoin All-Time-High (~$69k im November)
+- Extreme Whale-Aktivität
 - El Salvador Bitcoin-Adoption (September)
 
 **Institutionelle Adoption:**
 - MicroStrategy massive Käufe
-- Tesla Investment ($1.5B im Februar)
-- Viele Corporate Treasuries steigen ein
+- Tesla Investment ($1.5B)
+- Corporate Treasuries steigen ein
 
 **Markt-Events:**
-- China Mining Ban (Mai) → Hash-Rate Crash → Pool-Verschiebungen
-- Elon Musk Tweet-Drama → Massive Volatilität
-- Taproot Upgrade (November) → Technische Veränderung
+- China Mining Ban (Mai) → Hash-Rate Crash
+- Elon Musk Tweet-Drama → Volatilität
+- Taproot Upgrade (November)
 
 **Daten-Qualität:**
 - Vollständige Blockchair-Coverage
-- Moderate Größe (~500GB unkomprimiert)
+- Moderate Größe (~500GB)
 - Repräsentativ für moderne Bitcoin-Nutzung
-
-**Alternative Zeiträume:**
-- **2017:** ICO-Boom, erste große Bull-Run (~100GB)
-- **2020:** COVID-Crash + Recovery (~120GB)
-- **2023:** Ordinals/Inscriptions Hype (~150GB)
 
 ---
 
 ## ⚠️ Troubleshooting
 
-### Download schlägt fehl
+### GUI startet nicht
 
-**Problem:** HTTP 404 Fehler für manche Tage
-
-**Lösung:** Normal! Blockchair hat nicht für jeden Tag Daten. Script überspringt automatisch.
-
-### Zu langsam
+**Problem:** `ModuleNotFoundError: No module named 'tkinter'`
 
 **Lösung:**
 ```bash
-# Mehr parallele Downloads
-python scripts/download_blockchair.py --year 2021 --workers 8 --output /path
+# macOS
+brew install python-tk
+
+# Linux
+sudo apt-get install python3-tk
+
+# Windows: Normalerweise vorinstalliert
 ```
+
+### Download zu langsam
+
+**Ursache:** Blockchair-Server oder langsames Internet
+
+**Lösung:**
+- Kleineren Zeitraum wählen (z.B. nur Q1 statt ganzes Jahr)
+- Zu anderer Tageszeit versuchen
+- Nur wichtigste Tabelle: transactions
 
 ### Zu wenig Speicherplatz
 
-**Option 1:** Kleinerer Zeitraum
-```bash
-# Nur Q1 2021
-python scripts/download_blockchair.py \
-  --date-range 2021-01-01 2021-03-31 \
-  --output /path
-```
+**Lösungen:**
+1. Kleinerer Zeitraum (Monat statt Jahr)
+2. Nur transactions-Tabelle (wichtigste für Entity-Clustering)
+3. Remove .gz aktiviert lassen (Standard, spart ~70%)
 
-**Option 2:** Nur wichtige Tabellen
-```bash
-# Nur transactions (wichtigste Tabelle)
-python scripts/download_blockchair.py \
-  --year 2021 \
-  --tables transactions \
-  --output /path
-```
+### Download bricht ab
 
-**Option 3:** Mit --remove-gz (spart ~70% Platz)
-```bash
-python scripts/download_blockchair.py \
-  --year 2021 \
-  --remove-gz \
-  --output /path
-```
-
-### Spark läuft nicht mit lokalen Daten
-
-**Problem:** Memory Error beim Laden großer Zeiträume
-
-**Lösung:** Kleinere Zeiträume laden
-```python
-# Statt ganzer Monat
-loader.load_transactions("2021-01-01", "2021-01-31")
-
-# Besser: Wochenweise
-loader.load_transactions("2021-01-01", "2021-01-07")
-```
+**Lösung:** Einfach GUI neu starten!
+- Bereits heruntergeladene Files werden erkannt
+- Automatische Resume-Funktion
+- Kein Datenverlust
 
 ---
 
 ## 📈 Performance-Tipps
 
-### Schnellerer Download
-
-1. **Mehr Workers:** `--workers 8` (wenn Internet schnell)
-2. **Keine Extraktion während Download:** `--no-extract`, dann später extrahieren
-3. **Nur benötigte Tabellen:** `--tables transactions outputs`
-
 ### Schnelleres Laden in Spark
 
-1. **Parquet konvertieren** (optional, für wiederholte Nutzung):
+**1. Kleinere Zeiträume:**
 ```python
-df = loader.load_transactions("2021-01-01", "2021-12-31")
-df.write.parquet("/Volumes/MySSD/bitcoin_data/parquet/transactions_2021.parquet")
+# Statt ganzer Monat
+df = loader.load_transactions("2021-01-01", "2021-01-31")
 
-# Später deutlich schneller:
-df = spark.read.parquet("/Volumes/MySSD/bitcoin_data/parquet/transactions_2021.parquet")
+# Besser: Wochenweise
+df = loader.load_transactions("2021-01-01", "2021-01-07")
 ```
 
-2. **Kleinere Zeiträume:** Wochenweise statt monatsweise laden
-
-3. **Filter früh anwenden:**
+**2. Parquet konvertieren (für wiederholte Nutzung):**
 ```python
-# Gut: Filter direkt beim Laden
-df = loader.load_transactions("2021-01-01", "2021-01-07", filter_coinbase=True)
+# Einmalig: TSV → Parquet
+df = loader.load_transactions("2021-01-01", "2021-12-31")
+df.write.parquet("/path/parquet/transactions_2021.parquet")
 
-# Noch besser: Nur Multi-Input laden
+# Später ~5x schneller:
+df = spark.read.parquet("/path/parquet/transactions_2021.parquet")
+```
+
+**3. Nur benötigte Spalten:**
+```python
+df = df.select("hash", "input_count", "output_count", "fee")
+```
+
+**4. Filter früh anwenden:**
+```python
+# Nur Multi-Input-Transaktionen laden
 df = loader.get_multi_input_transactions("2021-01-01", "2021-01-07")
 ```
 
@@ -361,6 +300,8 @@ df = loader.get_multi_input_transactions("2021-01-01", "2021-01-07")
 
 ## 📚 Weitere Informationen
 
-- **Blockchair Dokumentation:** https://blockchair.com/dumps
-- **Schema-Referenz:** https://blockchair.com/api/docs#link_M03
-- **Bitcoin Timestamps:** Alle Zeiten in UTC
+- **Download-Guide:** `docs/DOWNLOAD_GUIDE.md`
+- **Blockchair Integration:** `docs/BLOCKCHAIR_INTEGRATION.md`
+- **Quickstart:** `docs/BLOCKCHAIR_QUICKSTART.txt`
+- **Blockchair API:** https://blockchair.com/api/docs
+- **Blockchair Dumps:** https://gz.blockchair.com/bitcoin/
