@@ -333,22 +333,96 @@ Jedes Notebook baut auf dem vorherigen auf:
 
 ## Tech Stack
 
-- **Daten:** Google BigQuery Public Dataset (`bigquery-public-data.crypto_bitcoin`)
+### Datenquellen
+
+Das Projekt unterstützt **drei Datenquellen** für maximale Flexibilität:
+
+#### 1. Lokale Blockchair-Daten (Empfohlen für große Analysen)
+
+```bash
+# Installation
+pip install blockchair-downloader
+
+# Download starten (GUI öffnet sich)
+blockchair-downloader
+
+# Im Notebook verwenden
+LOCAL_DATA_PATH = '/path/to/downloaded/data'
+```
+
+**Vorteile:**
+- ✅ Keine BigQuery-Kosten
+- ✅ Unbegrenzte Analysen möglich
+- ✅ Volle Kontrolle über Datenumfang
+
+**Download-Zeit:**
+- 1 Tag: ~1.3 GB (5-10 min)
+- 1 Woche: ~9 GB (~30 min)
+- 1 Monat: ~40 GB (~2 Std)
+
+#### 2. Google BigQuery (Public Dataset)
+
+```bash
+# Erfordert: Google Cloud Account + BigQuery Setup
+# Siehe: docs/SETUP.md
+```
+
+**Vorteile:**
+- ✅ Sofort verfügbar (kein Download)
+- ✅ Vollständiger Blockchain-Verlauf
+
+**Nachteile:**
+- ❌ Kosten ab 1TB Datenabfrage (~5 USD/TB)
+- ❌ Query-Limits
+
+#### 3. Demo-Daten (Für Testen ohne Setup)
+
+Sample-Daten sind direkt in Notebooks hardcoded.
+
+**Verwendung:** `FORCE_DEMO_MODE = True`
+
+### Tech Stack
+
 - **Processing:** Apache Spark (PySpark 3.4.1)
 - **Graph-Analyse:** GraphFrames 0.6
+- **Schemas:** `src/schemas.py` (Blockchair TSV-Definitionen)
 - **Environment:** Jupyter Notebooks
 - **Python:** 3.11+
+- **Java:** 11 (für Spark)
 
 ---
 
 ## Quick Start
 
-Siehe [SETUP.md](docs/SETUP.md) für vollständige Installationsanleitung.
+### Option 1: Mit Blockchair-Daten (Empfohlen)
 
 ```bash
-source venv/bin/activate
-export JAVA_HOME=$(/usr/libexec/java_home -v 11)  # macOS
-jupyter notebook
+# 1. Blockchair-Downloader installieren
+pip install blockchair-downloader
+
+# 2. Daten herunterladen (GUI öffnet sich)
+blockchair-downloader
+
+# 3. Projekt starten
+./start_project.sh
+
+# 4. In Jupyter: Pfad zu heruntergeladenen Daten setzen
+LOCAL_DATA_PATH = '/Users/username/blockchair-data'
+```
+
+### Option 2: Mit BigQuery
+
+Siehe [SETUP.md](docs/SETUP.md) für vollständige BigQuery-Setup-Anleitung.
+
+```bash
+./start_project.sh
+```
+
+### Option 3: Demo-Modus (Ohne Setup)
+
+```bash
+./start_project.sh
+# Im Notebook: FORCE_DEMO_MODE = True
 ```
 
 ---
