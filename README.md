@@ -359,16 +359,17 @@ jupyter notebook
 
 **Schritt 1: Daten herunterladen (Jahr 2021, ~500GB)**
 
-```bash
-# Quick Start Script (empfohlen)
-./download_2021_data.sh /Volumes/MySSD/bitcoin_data
+Nutze unser standalone Download-Tool:
 
-# Oder manuell mit mehr Kontrolle
-python scripts/download_blockchair.py \
-  --year 2021 \
-  --output /Volumes/MySSD/bitcoin_data \
-  --remove-gz
+```bash
+# Installation (einmalig)
+pip install blockchair-downloader
+
+# GUI starten
+blockchair-downloader
 ```
+
+Mehr Infos: [blockchair-downloader](https://github.com/RomanRnlt/blockchair-downloader)
 
 **Schritt 2: Notebook öffnen**
 
