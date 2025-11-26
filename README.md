@@ -333,7 +333,9 @@ Jedes Notebook baut auf dem vorherigen auf:
 
 ## Tech Stack
 
-- **Daten:** Google BigQuery Public Dataset (`bigquery-public-data.crypto_bitcoin`)
+- **Daten:**
+  - Google BigQuery Public Dataset (`bigquery-public-data.crypto_bitcoin`)
+  - Blockchair Local Dumps (optional, für offline-Arbeit)
 - **Processing:** Apache Spark (PySpark 3.4.1)
 - **Graph-Analyse:** GraphFrames 0.6
 - **Environment:** Jupyter Notebooks
@@ -343,6 +345,8 @@ Jedes Notebook baut auf dem vorherigen auf:
 
 ## Quick Start
 
+### Option 1: Mit BigQuery (Cloud)
+
 Siehe [SETUP.md](docs/SETUP.md) für vollständige Installationsanleitung.
 
 ```bash
@@ -350,6 +354,30 @@ source venv/bin/activate
 export JAVA_HOME=$(/usr/libexec/java_home -v 11)  # macOS
 jupyter notebook
 ```
+
+### Option 2: Mit lokalen Blockchair-Daten (empfohlen für Entwicklung)
+
+**Schritt 1: Daten herunterladen (Jahr 2021, ~500GB)**
+
+```bash
+# Quick Start Script (empfohlen)
+./download_2021_data.sh /Volumes/MySSD/bitcoin_data
+
+# Oder manuell mit mehr Kontrolle
+python scripts/download_blockchair.py \
+  --year 2021 \
+  --output /Volumes/MySSD/bitcoin_data \
+  --remove-gz
+```
+
+**Schritt 2: Notebook öffnen**
+
+```bash
+./start_project.sh
+# Dann: notebooks/02_local_data_exploration.ipynb öffnen
+```
+
+Siehe [scripts/README.md](scripts/README.md) für Details zum Download-Prozess.
 
 ---
 
