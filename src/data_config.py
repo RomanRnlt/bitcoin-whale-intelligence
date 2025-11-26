@@ -3,7 +3,7 @@ Data Source Configuration
 Central configuration for selecting data sources in notebooks.
 
 Usage in notebook:
-    from data_config import DataConfig, load_data
+    from src.data_config import DataConfig, load_data
 
     # Select data source
     config = DataConfig(source="local")  # or "bigquery" or "demo"
@@ -47,7 +47,7 @@ class DataConfig:
         if source == "local" and not self.local_data_path:
             raise ValueError(
                 "Local data path not found. Please either:\n"
-                "1. Download data first: python download_bitcoin_data.py\n"
+                "1. Download data first: python scripts/download_bitcoin_data.py\n"
                 "2. Specify path: DataConfig(source='local', local_data_path='/path/to/extracted')"
             )
 
@@ -124,7 +124,7 @@ def _load_local_data(data_path: str, start_date: str, end_date: str,
                      spark: Optional[SparkSession],
                      filter_coinbase: bool) -> DataFrame:
     """Load data from local Blockchair dumps."""
-    from scripts.load_blockchair_data import BlockchairDataLoader
+    from src.loaders.blockchair import BlockchairDataLoader
 
     loader = BlockchairDataLoader(data_path, spark=spark)
     df = loader.load_transactions(start_date, end_date, filter_coinbase=filter_coinbase)
@@ -205,7 +205,7 @@ def get_loader(config: DataConfig, spark: Optional[SparkSession] = None):
         df = loader.load_transactions("2021-01-01", "2021-01-07")
     """
     if config.source == "local":
-        from scripts.load_blockchair_data import BlockchairDataLoader
+        from src.loaders.blockchair import BlockchairDataLoader
         return BlockchairDataLoader(config.local_data_path, spark=spark)
     else:
         return None
