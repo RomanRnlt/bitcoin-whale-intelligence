@@ -6,19 +6,27 @@ Tools zum Download und Laden von Bitcoin Blockchain-Daten.
 
 ## 📥 Download Tool (GUI)
 
+### Installation
+
+**Einmalig: CustomTkinter installieren**
+```bash
+pip3 install --user customtkinter
+```
+
 ### Verwendung
 
 **Starte die GUI:**
 ```bash
-python scripts/download_bitcoin_data.py
+python3 scripts/download_bitcoin_data.py
 ```
 
 ### Features
 
-✅ **User-friendly GUI**
-- Grafische Oberfläche (macOS, Windows, Linux)
-- Kein Command-Line-Wissen nötig
-- Intuitive Bedienung
+✅ **Modern & Clean UI**
+- Professionelles Design mit Dark Mode
+- Bitcoin-themed Farbschema
+- Scrollable Interface
+- Card-based Layout mit Rounded Corners
 
 ✅ **Pause/Resume**
 - Download jederzeit pausieren
