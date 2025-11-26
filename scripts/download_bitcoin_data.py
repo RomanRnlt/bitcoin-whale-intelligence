@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
 Bitcoin Blockchain Data Downloader (Blockchair)
-Cross-platform GUI tool for downloading Bitcoin blockchain dumps.
+Modern GUI tool for downloading Bitcoin blockchain dumps.
 
 Features:
+- Modern, clean UI with dark mode
 - Pause/Resume functionality
 - State persistence (remembers settings and progress)
 - Auto-resume on restart
@@ -22,12 +23,15 @@ import urllib.error
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Tuple, List, Optional
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
-from tkinter import font as tkfont
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
 import threading
 import queue
 import time
+
+# Set appearance mode and default color theme
+ctk.set_appearance_mode("dark")  # Modes: "System", "Dark", "Light"
+ctk.set_default_color_theme("blue")  # Themes: "blue", "green", "dark-blue"
 
 
 class DownloadState:
@@ -327,33 +331,31 @@ class BlockchairDownloader:
 
 
 class DownloaderGUI:
-    """GUI for Bitcoin data downloader with pause/resume support."""
+    """Modern GUI for Bitcoin data downloader with pause/resume support."""
 
     def __init__(self):
-        self.root = tk.Tk()
+        self.root = ctk.CTk()
         self.root.title("Bitcoin Blockchain Data Downloader")
-        self.root.geometry("900x750")
-        self.root.resizable(True, True)
+        self.root.geometry("1000x800")
 
-        # Style
-        self.style = ttk.Style()
-        if sys.platform == "darwin":  # macOS
-            self.style.theme_use("aqua")
-        elif sys.platform == "win32":  # Windows
-            self.style.theme_use("vista")
-        else:  # Linux
-            self.style.theme_use("clam")
+        # Center window
+        self.root.update_idletasks()
+        width = self.root.winfo_width()
+        height = self.root.winfo_height()
+        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.root.winfo_screenheight() // 2) - (height // 2)
+        self.root.geometry(f'{width}x{height}+{x}+{y}')
 
         # Variables
-        self.output_dir = tk.StringVar()
-        self.start_date = tk.StringVar(value="2021-01-01")
-        self.end_date = tk.StringVar(value="2021-12-31")
-        self.remove_gz = tk.BooleanVar(value=True)
+        self.output_dir = ctk.StringVar()
+        self.start_date = ctk.StringVar(value="2021-01-01")
+        self.end_date = ctk.StringVar(value="2021-12-31")
+        self.remove_gz = ctk.BooleanVar(value=True)
 
         # Table selection
-        self.table_blocks = tk.BooleanVar(value=True)
-        self.table_transactions = tk.BooleanVar(value=True)
-        self.table_outputs = tk.BooleanVar(value=True)
+        self.table_blocks = ctk.BooleanVar(value=True)
+        self.table_transactions = ctk.BooleanVar(value=True)
+        self.table_outputs = ctk.BooleanVar(value=True)
 
         # Download state
         self.is_downloading = False
@@ -366,134 +368,197 @@ class DownloaderGUI:
         self.check_for_incomplete_downloads()
 
     def setup_ui(self):
-        """Setup UI components."""
+        """Setup modern UI components."""
+        # Configure grid
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(1, weight=1)
+
         # Header
-        header = ttk.Frame(self.root, padding="20")
-        header.pack(fill=tk.X)
+        header_frame = ctk.CTkFrame(self.root, corner_radius=0, fg_color="transparent")
+        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=(20, 10))
 
-        title_font = tkfont.Font(family="Helvetica", size=16, weight="bold")
-        title = ttk.Label(header, text="🐋 Bitcoin Blockchain Data Downloader",
-                         font=title_font)
-        title.pack()
+        title = ctk.CTkLabel(
+            header_frame,
+            text="🐋 Bitcoin Blockchain Downloader",
+            font=ctk.CTkFont(size=28, weight="bold")
+        )
+        title.pack(pady=(0, 5))
 
-        subtitle = ttk.Label(header, text="Download Blockchair dumps locally • Pause/Resume supported",
-                            foreground="gray")
+        subtitle = ctk.CTkLabel(
+            header_frame,
+            text="Download Blockchair dumps locally • Pause & Resume anytime",
+            font=ctk.CTkFont(size=13),
+            text_color="gray"
+        )
         subtitle.pack()
 
-        # Main content
-        content = ttk.Frame(self.root, padding="20")
-        content.pack(fill=tk.BOTH, expand=True)
+        # Main scrollable frame
+        main_frame = ctk.CTkScrollableFrame(self.root, corner_radius=10)
+        main_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        main_frame.grid_columnconfigure(0, weight=1)
 
-        # Output directory
-        dir_frame = ttk.LabelFrame(content, text="📁 Output Directory", padding="10")
-        dir_frame.pack(fill=tk.X, pady=(0, 10))
+        # Output Directory Section
+        dir_frame = ctk.CTkFrame(main_frame, corner_radius=10)
+        dir_frame.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+        dir_frame.grid_columnconfigure(1, weight=1)
 
-        dir_input = ttk.Frame(dir_frame)
-        dir_input.pack(fill=tk.X)
+        ctk.CTkLabel(dir_frame, text="📁 Output Directory", font=ctk.CTkFont(size=14, weight="bold")).grid(
+            row=0, column=0, columnspan=3, sticky="w", padx=15, pady=(15, 10)
+        )
 
-        ttk.Entry(dir_input, textvariable=self.output_dir, width=60).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(dir_input, text="Browse...", command=self.browse_directory).pack(side=tk.LEFT)
+        self.dir_entry = ctk.CTkEntry(dir_frame, textvariable=self.output_dir, height=35)
+        self.dir_entry.grid(row=1, column=0, sticky="ew", padx=(15, 10), pady=(0, 15))
 
-        # Date range
-        date_frame = ttk.LabelFrame(content, text="📅 Date Range", padding="10")
-        date_frame.pack(fill=tk.X, pady=(0, 10))
+        ctk.CTkButton(
+            dir_frame, text="Browse", command=self.browse_directory,
+            width=100, height=35
+        ).grid(row=1, column=1, padx=(0, 15), pady=(0, 15))
 
-        date_grid = ttk.Frame(date_frame)
-        date_grid.pack(fill=tk.X)
+        # Date Range Section
+        date_frame = ctk.CTkFrame(main_frame, corner_radius=10)
+        date_frame.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        date_frame.grid_columnconfigure((1, 2), weight=1)
 
-        ttk.Label(date_grid, text="Start Date (YYYY-MM-DD):").grid(row=0, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(date_grid, textvariable=self.start_date, width=20).grid(row=0, column=1, padx=5, pady=5)
+        ctk.CTkLabel(date_frame, text="📅 Date Range", font=ctk.CTkFont(size=14, weight="bold")).grid(
+            row=0, column=0, columnspan=3, sticky="w", padx=15, pady=(15, 10)
+        )
 
-        ttk.Label(date_grid, text="End Date (YYYY-MM-DD):").grid(row=1, column=0, sticky=tk.W, pady=5)
-        ttk.Entry(date_grid, textvariable=self.end_date, width=20).grid(row=1, column=1, padx=5, pady=5)
+        ctk.CTkLabel(date_frame, text="Start Date:").grid(row=1, column=0, sticky="w", padx=15, pady=5)
+        ctk.CTkEntry(date_frame, textvariable=self.start_date, height=35, width=150).grid(
+            row=1, column=1, sticky="w", padx=10, pady=5
+        )
 
-        # Quick presets
-        preset_frame = ttk.Frame(date_grid)
-        preset_frame.grid(row=0, column=2, rowspan=2, padx=20)
+        ctk.CTkLabel(date_frame, text="End Date:").grid(row=2, column=0, sticky="w", padx=15, pady=5)
+        ctk.CTkEntry(date_frame, textvariable=self.end_date, height=35, width=150).grid(
+            row=2, column=1, sticky="w", padx=10, pady=5
+        )
 
-        ttk.Label(preset_frame, text="Quick Presets:").pack(anchor=tk.W)
-        ttk.Button(preset_frame, text="Year 2021",
-                  command=lambda: self.set_preset("2021-01-01", "2021-12-31")).pack(fill=tk.X, pady=2)
-        ttk.Button(preset_frame, text="Q1 2021",
-                  command=lambda: self.set_preset("2021-01-01", "2021-03-31")).pack(fill=tk.X, pady=2)
-        ttk.Button(preset_frame, text="January 2021",
-                  command=lambda: self.set_preset("2021-01-01", "2021-01-31")).pack(fill=tk.X, pady=2)
+        # Quick Presets
+        preset_label = ctk.CTkLabel(date_frame, text="Quick Presets:", font=ctk.CTkFont(size=12, weight="bold"))
+        preset_label.grid(row=1, column=2, sticky="w", padx=15)
 
-        # Tables selection
-        tables_frame = ttk.LabelFrame(content, text="📊 Tables to Download", padding="10")
-        tables_frame.pack(fill=tk.X, pady=(0, 10))
+        preset_buttons = ctk.CTkFrame(date_frame, fg_color="transparent")
+        preset_buttons.grid(row=2, column=2, sticky="w", padx=15, pady=(0, 15))
 
-        ttk.Checkbutton(tables_frame, text="Blocks (~1 MB/day)",
-                       variable=self.table_blocks).pack(anchor=tk.W)
-        ttk.Checkbutton(tables_frame, text="Transactions (~150 MB/day)",
-                       variable=self.table_transactions).pack(anchor=tk.W)
-        ttk.Checkbutton(tables_frame, text="Outputs (~250 MB/day)",
-                       variable=self.table_outputs).pack(anchor=tk.W)
+        ctk.CTkButton(
+            preset_buttons, text="Year 2021", width=100, height=28,
+            command=lambda: self.set_preset("2021-01-01", "2021-12-31")
+        ).pack(side="left", padx=5)
+
+        ctk.CTkButton(
+            preset_buttons, text="Q1 2021", width=100, height=28,
+            command=lambda: self.set_preset("2021-01-01", "2021-03-31")
+        ).pack(side="left", padx=5)
+
+        ctk.CTkButton(
+            preset_buttons, text="Jan 2021", width=100, height=28,
+            command=lambda: self.set_preset("2021-01-01", "2021-01-31")
+        ).pack(side="left", padx=5)
+
+        # Tables Selection
+        tables_frame = ctk.CTkFrame(main_frame, corner_radius=10)
+        tables_frame.grid(row=2, column=0, sticky="ew", pady=(0, 15))
+
+        ctk.CTkLabel(tables_frame, text="📊 Tables to Download", font=ctk.CTkFont(size=14, weight="bold")).pack(
+            anchor="w", padx=15, pady=(15, 10)
+        )
+
+        ctk.CTkCheckBox(tables_frame, text="Blocks (~1 MB/day)", variable=self.table_blocks).pack(
+            anchor="w", padx=15, pady=5
+        )
+        ctk.CTkCheckBox(tables_frame, text="Transactions (~150 MB/day)", variable=self.table_transactions).pack(
+            anchor="w", padx=15, pady=5
+        )
+        ctk.CTkCheckBox(tables_frame, text="Outputs (~250 MB/day)", variable=self.table_outputs).pack(
+            anchor="w", padx=15, pady=(5, 15)
+        )
 
         # Options
-        options_frame = ttk.LabelFrame(content, text="⚙️ Options", padding="10")
-        options_frame.pack(fill=tk.X, pady=(0, 10))
+        options_frame = ctk.CTkFrame(main_frame, corner_radius=10)
+        options_frame.grid(row=3, column=0, sticky="ew", pady=(0, 15))
 
-        ttk.Checkbutton(options_frame, text="Remove .gz files after extraction (saves ~70% disk space)",
-                       variable=self.remove_gz).pack(anchor=tk.W)
+        ctk.CTkLabel(options_frame, text="⚙️ Options", font=ctk.CTkFont(size=14, weight="bold")).pack(
+            anchor="w", padx=15, pady=(15, 10)
+        )
 
-        # Size estimate
-        self.size_frame = ttk.Frame(content)
-        self.size_frame.pack(fill=tk.X, pady=(0, 10))
+        ctk.CTkCheckBox(
+            options_frame,
+            text="Remove .gz files after extraction (saves ~70% disk space)",
+            variable=self.remove_gz
+        ).pack(anchor="w", padx=15, pady=(5, 15))
 
-        self.size_label = ttk.Label(self.size_frame, text="", foreground="blue",
-                                    font=tkfont.Font(size=10, weight="bold"))
-        self.size_label.pack()
+        # Size Estimate
+        size_frame = ctk.CTkFrame(main_frame, corner_radius=10)
+        size_frame.grid(row=4, column=0, sticky="ew", pady=(0, 15))
 
-        ttk.Button(content, text="Calculate Size",
-                  command=self.calculate_size).pack(pady=5)
+        self.size_label = ctk.CTkLabel(
+            size_frame, text="", font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("#1f538d", "#3b8ed0")
+        )
+        self.size_label.pack(pady=15)
 
-        # Control buttons
-        button_frame = ttk.Frame(content)
-        button_frame.pack(pady=10)
+        ctk.CTkButton(
+            size_frame, text="Calculate Download Size",
+            command=self.calculate_size, height=35
+        ).pack(pady=(0, 15))
 
-        self.start_button = ttk.Button(button_frame, text="▶ Start Download",
-                                      command=self.start_download)
-        self.start_button.pack(side=tk.LEFT, padx=5)
+        # Control Buttons
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.grid(row=5, column=0, sticky="ew", pady=(0, 15))
 
-        self.pause_button = ttk.Button(button_frame, text="⏸ Pause",
-                                      command=self.pause_download, state=tk.DISABLED)
-        self.pause_button.pack(side=tk.LEFT, padx=5)
+        self.start_button = ctk.CTkButton(
+            button_frame, text="▶ Start Download",
+            command=self.start_download,
+            height=40, font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#2CC985", "#2FA572"), hover_color=("#28B872", "#298F65")
+        )
+        self.start_button.pack(side="left", padx=5, expand=True, fill="x")
 
-        self.cancel_button = ttk.Button(button_frame, text="⏹ Cancel",
-                                       command=self.cancel_download, state=tk.DISABLED)
-        self.cancel_button.pack(side=tk.LEFT, padx=5)
+        self.pause_button = ctk.CTkButton(
+            button_frame, text="⏸ Pause",
+            command=self.pause_download, state="disabled",
+            height=40, font=ctk.CTkFont(size=14),
+            fg_color=("#FF9500", "#FF9500"), hover_color=("#E68600", "#E68600")
+        )
+        self.pause_button.pack(side="left", padx=5, expand=True, fill="x")
 
-        # Progress
-        progress_frame = ttk.LabelFrame(content, text="📥 Progress", padding="10")
-        progress_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.cancel_button = ctk.CTkButton(
+            button_frame, text="⏹ Cancel",
+            command=self.cancel_download, state="disabled",
+            height=40, font=ctk.CTkFont(size=14),
+            fg_color=("#FF3B30", "#FF453A"), hover_color=("#E6352A", "#E63E34")
+        )
+        self.cancel_button.pack(side="left", padx=5, expand=True, fill="x")
 
-        # Overall progress
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var,
-                                           maximum=100, mode='determinate')
-        self.progress_bar.pack(fill=tk.X, pady=(0, 5))
+        # Progress Section
+        progress_frame = ctk.CTkFrame(main_frame, corner_radius=10)
+        progress_frame.grid(row=6, column=0, sticky="nsew", pady=(0, 0))
 
-        self.progress_label = ttk.Label(progress_frame, text="Ready to download")
-        self.progress_label.pack(anchor=tk.W)
+        ctk.CTkLabel(progress_frame, text="📥 Download Progress", font=ctk.CTkFont(size=14, weight="bold")).pack(
+            anchor="w", padx=15, pady=(15, 10)
+        )
 
-        # File progress
-        self.file_progress_var = tk.DoubleVar()
-        self.file_progress_bar = ttk.Progressbar(progress_frame, variable=self.file_progress_var,
-                                                 maximum=100, mode='determinate')
-        self.file_progress_bar.pack(fill=tk.X, pady=(5, 5))
+        # Overall Progress
+        self.progress_var = ctk.DoubleVar()
+        self.progress_bar = ctk.CTkProgressBar(progress_frame, variable=self.progress_var, height=20)
+        self.progress_bar.pack(fill="x", padx=15, pady=(0, 5))
+        self.progress_bar.set(0)
 
-        self.file_progress_label = ttk.Label(progress_frame, text="")
-        self.file_progress_label.pack(anchor=tk.W)
+        self.progress_label = ctk.CTkLabel(progress_frame, text="Ready to download", anchor="w")
+        self.progress_label.pack(fill="x", padx=15, pady=(0, 10))
 
-        # Log
-        log_scroll = ttk.Scrollbar(progress_frame)
-        log_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        # File Progress
+        self.file_progress_var = ctk.DoubleVar()
+        self.file_progress_bar = ctk.CTkProgressBar(progress_frame, variable=self.file_progress_var, height=15)
+        self.file_progress_bar.pack(fill="x", padx=15, pady=(0, 5))
+        self.file_progress_bar.set(0)
 
-        self.log_text = tk.Text(progress_frame, height=12, wrap=tk.WORD,
-                               yscrollcommand=log_scroll.set)
-        self.log_text.pack(fill=tk.BOTH, expand=True)
-        log_scroll.config(command=self.log_text.yview)
+        self.file_progress_label = ctk.CTkLabel(progress_frame, text="", anchor="w")
+        self.file_progress_label.pack(fill="x", padx=15, pady=(0, 10))
+
+        # Log Text
+        self.log_text = ctk.CTkTextbox(progress_frame, height=200, wrap="word")
+        self.log_text.pack(fill="both", expand=True, padx=15, pady=(0, 15))
 
     def check_for_incomplete_downloads(self):
         """Check for incomplete downloads and offer to resume."""
@@ -626,8 +691,8 @@ class DownloaderGUI:
         try:
             while True:
                 message = self.log_queue.get_nowait()
-                self.log_text.insert(tk.END, message + "\n")
-                self.log_text.see(tk.END)
+                self.log_text.insert("end", message + "\n")
+                self.log_text.see("end")
         except queue.Empty:
             pass
 
@@ -680,10 +745,10 @@ class DownloaderGUI:
 
         # Start download thread
         self.is_downloading = True
-        self.start_button.config(state=tk.DISABLED)
-        self.pause_button.config(state=tk.NORMAL, text="⏸ Pause")
-        self.cancel_button.config(state=tk.NORMAL)
-        self.log_text.delete(1.0, tk.END)
+        self.start_button.configure(state="disabled")
+        self.pause_button.configure(state="normal", text="⏸ Pause")
+        self.cancel_button.configure(state="normal")
+        self.log_text.delete("1.0", "end")
         self.progress_var.set(0)
         self.file_progress_var.set(0)
 
@@ -702,12 +767,12 @@ class DownloaderGUI:
         if self.downloader.paused:
             # Resume
             self.downloader.resume()
-            self.pause_button.config(text="⏸ Pause")
+            self.pause_button.configure(text="⏸ Pause")
             self.log("▶ Download resumed")
         else:
             # Pause
             self.downloader.pause()
-            self.pause_button.config(text="▶ Resume")
+            self.pause_button.configure(text="▶ Resume")
             self.log("⏸ Download paused (you can close and resume later)")
 
     def cancel_download(self):
@@ -799,9 +864,9 @@ class DownloaderGUI:
 
         finally:
             self.is_downloading = False
-            self.start_button.config(state=tk.NORMAL)
-            self.pause_button.config(state=tk.DISABLED)
-            self.cancel_button.config(state=tk.DISABLED)
+            self.start_button.configure(state="normal")
+            self.pause_button.configure(state="disabled")
+            self.cancel_button.configure(state="disabled")
             self.downloader = None
 
     def run(self):
