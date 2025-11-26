@@ -160,8 +160,15 @@ def load_blockchair_data(spark, data_path):
 
     Args:
         spark: SparkSession instance
-        data_path: Base path to the extracted Blockchair data
-                   (e.g., '/Users/professor/blockchair-data/extracted')
+        data_path: Base path to the Blockchair data directory
+                   The function expects this structure (as created by blockchair-downloader):
+                   data_path/
+                   ├── extracted/
+                   │   ├── blocks/*.tsv
+                   │   ├── transactions/*.tsv
+                   │   ├── inputs/*.tsv
+                   │   └── outputs/*.tsv
+                   └── raw/  (optional, .gz files)
 
     Returns:
         dict: Dictionary with keys 'blocks', 'transactions', 'inputs', 'outputs'
@@ -169,31 +176,39 @@ def load_blockchair_data(spark, data_path):
 
     Example:
         >>> spark = SparkSession.builder.appName("Bitcoin Analysis").getOrCreate()
-        >>> data = load_blockchair_data(spark, '/path/to/blockchair/extracted')
+        >>> data = load_blockchair_data(spark, '/Users/professor/blockchair-data')
         >>> blocks_df = data['blocks']
         >>> transactions_df = data['transactions']
     """
+    # Automatically append /extracted if not already present
+    from pathlib import Path
+    base_path = Path(data_path)
+    if base_path.name != 'extracted' and (base_path / 'extracted').exists():
+        extracted_path = base_path / 'extracted'
+    else:
+        extracted_path = base_path
+
     return {
         'blocks': spark.read.csv(
-            f"{data_path}/blocks/*.tsv",
+            f"{extracted_path}/blocks/*.tsv",
             sep='\t',
             header=True,
             schema=BLOCKS_SCHEMA
         ),
         'transactions': spark.read.csv(
-            f"{data_path}/transactions/*.tsv",
+            f"{extracted_path}/transactions/*.tsv",
             sep='\t',
             header=True,
             schema=TRANSACTIONS_SCHEMA
         ),
         'inputs': spark.read.csv(
-            f"{data_path}/inputs/*.tsv",
+            f"{extracted_path}/inputs/*.tsv",
             sep='\t',
             header=True,
             schema=INPUTS_SCHEMA
         ),
         'outputs': spark.read.csv(
-            f"{data_path}/outputs/*.tsv",
+            f"{extracted_path}/outputs/*.tsv",
             sep='\t',
             header=True,
             schema=OUTPUTS_SCHEMA
