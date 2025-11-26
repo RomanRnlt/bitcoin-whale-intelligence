@@ -21,13 +21,37 @@ Identifikation von Bitcoin-Whales (Großinvestoren mit >1000 BTC) durch Graph-ba
 
 ## Kernalgorithmus: Common Input Ownership Heuristic
 
-Wenn eine Bitcoin-Transaction mehrere Input-Adressen verwendet (z.B. A, B, C), müssen alle diese Adressen zur selben Entity gehören, da man alle Private Keys benötigt um die Transaction zu signieren.
+**Grundprinzip:**
+Wenn eine Bitcoin-Transaction mehrere Input-Adressen verwendet (z.B. A, B, C), müssen alle diese Adressen zur selben Entity gehören.
+
+**Warum?**
+- Um eine Bitcoin-Transaction zu signieren, braucht man die Private Keys ALLER Input-Adressen
+- Nur eine Person/Organisation kann alle diese Keys besitzen
+- Dies ist keine Vermutung, sondern eine kryptographische Notwendigkeit
+
+**Beispiel:**
+```
+Alice hat:
+  Adresse A1: 0.5 BTC
+  Adresse A2: 0.3 BTC
+
+Alice will 0.7 BTC senden:
+  → Muss A1 + A2 kombinieren (keine einzelne Adresse reicht)
+  → Transaction verwendet A1 und A2 als Inputs
+  → Beweis dass A1 und A2 zu Alice gehören
+```
 
 **Implementierung:**
 1. Multi-Input Transactions aus BigQuery extrahieren
 2. Address-Graph konstruieren (Edges = "verwendet in gleicher Transaction")
 3. Connected Components Algorithmus (GraphFrames)
 4. Jede Component = Eine Entity
+
+**Einschränkungen:**
+- Exchanges bündeln Auszahlungen → Filter bei >50 Inputs
+- CoinJoin Privacy-Protokolle → Erkennung notwendig
+- Adress-Wiederverwendung → kann zu Überclusterung führen
+- Genauigkeit: ~85-95% (etabliert in der Forschung)
 
 ## Notebook-Workflow
 

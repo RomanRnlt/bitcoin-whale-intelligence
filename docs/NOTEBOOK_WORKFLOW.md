@@ -47,6 +47,12 @@ Das Projekt ist in 4 Haupt-Notebooks strukturiert, die sequenziell aufeinander a
 
 **Zweck:** Initiale Exploration der Bitcoin-Blockchain-Daten zur Validierung der Datenqualität und des UTXO-Modells.
 
+**Grundkonzepte die verstanden werden müssen:**
+- **Bitcoin-Adresse vs. Wallet:** Eine Adresse ist wie ein Briefkasten, ein Wallet verwaltet tausende Adressen
+- **UTXO-Modell:** Bitcoin sind "Münzen" die vollständig ausgegeben werden (nicht teilbar wie Kontostände)
+- **Multi-Input:** Wenn mehrere "Münzen" kombiniert werden → alle Adressen gehören zur selben Person
+- **Entity:** Eine Person/Firma die viele Adressen besitzt (z.B. Alice's Wallet mit 1000 Adressen = 1 Entity)
+
 **Input:**
 - BigQuery Public Dataset: `bigquery-public-data.crypto_bitcoin`
 - Stichprobenzeitraum: 1.-7. Januar 2023
@@ -127,6 +133,17 @@ Das Projekt ist in 4 Haupt-Notebooks strukturiert, die sequenziell aufeinander a
 - GraphFrames Stack Overflow → Checkpoint-Strategie
 - Memory Management → Partitionierung
 - Exchange Detection → Filter für >50 Inputs
+
+**Methodische Limitationen (Common Input Ownership Heuristic):**
+- **Exchanges:** Bündeln Auszahlungen mehrerer Nutzer in einer Transaction
+  - Lösung: Filter bei input_count > 50
+- **CoinJoin:** Privacy-Protokoll das absichtlich Transaktionen kombiniert
+  - Erkennung: Typische Muster (gleiche Output-Beträge)
+- **Adress-Wiederverwendung:** Börsen nutzen oft feste Empfangsadressen
+  - Effekt: Kann zu überschätzten Entity-Größen führen
+- **Temporale Aspekte:** Adressen könnten verkauft/übertragen worden sein
+  - Clustering zeigt historische, nicht unbedingt aktuelle Besitzverhältnisse
+- **Erwartete Genauigkeit:** 85-95% (laut Meiklejohn et al. 2013, Reid & Harrigan 2011)
 
 **Erfolgsmetriken:**
 - Reduktion von Adressen auf Entities: 60-70%
