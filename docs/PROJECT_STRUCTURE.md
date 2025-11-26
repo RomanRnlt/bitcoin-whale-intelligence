@@ -43,13 +43,11 @@ bitcoin-whale-intelligence/
 │   ├── STRUCTURE_PROPOSAL.md
 │   └── PROJECT_STRUCTURE.md    # Diese Datei
 │
-├── data/                       # 💾 Lokale Daten (gitignored)
-│   ├── raw/                    # Rohdaten
-│   ├── processed/              # Prozessierte Daten
-│   └── sample/                 # Beispieldaten
-│
 └── tests/                      # 🧪 Unit-Tests
     └── __init__.py
+
+Note: Blockchain data is stored externally (not in repo)
+Example locations: /Volumes/MySSD/bitcoin_data, D:/bitcoin_data
 ```
 
 ## Hauptkomponenten
@@ -193,7 +191,7 @@ from src.loaders.blockchair import BlockchairDataLoader
 - **Executable Scripts** → `scripts/`
 - **Dokumentation** → `docs/`
 - **Tests** → `tests/`
-- **Daten** → `data/` (gitignored)
+- **Blockchain-Daten** → Extern gespeichert (vom User gewählter Pfad)
 
 ## Migration von alter Struktur
 

@@ -159,27 +159,14 @@ spark-events/
 # Data Files (DO NOT COMMIT LARGE DATA)
 # ============================================================================
 
-# Raw data from BigQuery (can be regenerated)
-data/raw/*
-!data/raw/.gitkeep
-
-# Processed data (can be regenerated)
-data/processed/*
-!data/processed/.gitkeep
-
-# Sample data (keep only compressed versions if needed)
-data/sample/*.parquet
-data/sample/*.csv
-!data/sample/.gitkeep
-
-# Temporary data
-data/temp/*
-data/tmp/*
-
 # Large files
 *.parquet
 *.csv
 *.tsv
+*.tsv.gz
+
+# Blockchair download state (local config)
+.download_state.json
 *.gz
 *.zip
 *.tar
