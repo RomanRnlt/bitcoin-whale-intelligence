@@ -35,6 +35,9 @@ fi
 # 2. Set Java Home (for Spark)
 echo "Setting Java environment..."
 
+# Set Spark local IP to avoid hostname warnings
+export SPARK_LOCAL_IP=127.0.0.1
+
 # Try to find Java 11
 if command -v /usr/libexec/java_home &> /dev/null; then
     # macOS
