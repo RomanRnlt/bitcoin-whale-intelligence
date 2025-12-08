@@ -15,6 +15,7 @@ Hauptfunktionen:
 - enrich_clustering_inputs(): Reichert Multi-Input-TXs mit Adressen an
 """
 
+import os
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -100,7 +101,8 @@ BLOCK_SCHEMA = StructType([
 def create_spark_session(
     app_name: str = "Bitcoin Whale Intelligence",
     driver_memory: str = "8g",
-    enable_graphframes: bool = True
+    enable_graphframes: bool = True,
+    suppress_logs: bool = True
 ) -> SparkSession:
     """
     Erstellt eine optimierte Spark-Session für Bitcoin-Datenverarbeitung.
@@ -109,6 +111,7 @@ def create_spark_session(
         app_name: Name der Spark-Applikation
         driver_memory: Speicher für den Driver (z.B. "8g", "16g")
         enable_graphframes: GraphFrames-Pakete laden (für Connected Components)
+        suppress_logs: Ivy/Spark-Startup-Meldungen unterdrücken
 
     Returns:
         Konfigurierte SparkSession
@@ -118,10 +121,6 @@ def create_spark_session(
         - Skew Join Handling für ungleiche Datenverteilung
         - Erhöhte Shuffle-Partitionen für große Datenmengen
     """
-    # Ivy-Logging unterdrücken (vor Spark-Start)
-    import os
-    os.environ["SPARK_SUBMIT_ARGS"] = "--conf spark.driver.extraJavaOptions=-Divy.message.logger.level=4 pyspark-shell"
-
     builder = SparkSession.builder \
         .appName(app_name) \
         .master("local[*]") \
@@ -134,9 +133,7 @@ def create_spark_session(
         .config("spark.sql.debug.maxToStringFields", "100") \
         .config("spark.ui.showConsoleProgress", "false") \
         .config("spark.memory.fraction", "0.8") \
-        .config("spark.memory.storageFraction", "0.3") \
-        .config("spark.driver.extraJavaOptions", "-Divy.message.logger.level=4") \
-        .config("spark.executor.extraJavaOptions", "-Divy.message.logger.level=4")
+        .config("spark.memory.storageFraction", "0.3")
 
     if enable_graphframes:
         builder = builder.config(
@@ -144,8 +141,25 @@ def create_spark_session(
             "graphframes:graphframes:0.8.3-spark3.5-s_2.12"
         )
 
-    spark = builder.getOrCreate()
-    spark.sparkContext.setLogLevel("ERROR")
+    if suppress_logs:
+        # stdout/stderr auf OS-Ebene umleiten (für Java/Ivy-Meldungen)
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        old_stdout_fd = os.dup(1)
+        old_stderr_fd = os.dup(2)
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+        try:
+            spark = builder.getOrCreate()
+            spark.sparkContext.setLogLevel("ERROR")
+        finally:
+            os.dup2(old_stdout_fd, 1)
+            os.dup2(old_stderr_fd, 2)
+            os.close(devnull)
+            os.close(old_stdout_fd)
+            os.close(old_stderr_fd)
+    else:
+        spark = builder.getOrCreate()
+        spark.sparkContext.setLogLevel("ERROR")
 
     return spark
 
