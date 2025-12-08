@@ -2,139 +2,129 @@
 
 > Wie wir aus Rohdaten versteckte Bitcoin-Wale finden
 
-## Inhaltsverzeichnis
+## Warum nur transactions.tsv?
 
-1. [Die Rohdaten (bitcoin-etl JSON)](#1-die-rohdaten-bitcoin-etl-json)
-2. [Schritt 1: explode_outputs()](#2-schritt-1-explode_outputs)
-3. [Schritt 2: explode_inputs()](#3-schritt-2-explode_inputs)
-4. [Schritt 3: UTXO Set berechnen](#4-schritt-3-utxo-set-berechnen)
-5. [Schritt 4: Entity Clustering](#5-schritt-4-entity-clustering-common-input-ownership)
-6. [Schritt 5: Whale Detection](#6-schritt-5-whale-detection)
-7. [Die komplette Pipeline](#7-die-komplette-pipeline)
-8. [Metriken](#8-metriken-h12011-testdaten)
+Blockchair liefert zwei Dateitypen:
+- **blocks.tsv** - Nur Metadaten (Zeitstempel, Miner-Belohnung) - **NICHT BENOETIGT**
+- **transactions.tsv** - Alle Transaktionen mit Inputs/Outputs - **DAS BRAUCHEN WIR**
 
 ---
 
-## 1. Die Rohdaten (bitcoin-etl JSON)
+## 1. Die Rohdaten verstehen
 
-**Eine Transaktion sieht so aus:**
+### Transaktion erklaert
+
+```
+INPUTS (Woher kommt das Geld?)
+========================================
+  spent_transaction_hash: "a1075d...8e3e"  <-- Verweis auf ALTE Transaktion
+  spent_output_index: 0                    <-- Welcher Output davon
+  address: "12cbQ...xV8s"                  <-- Wer unterschreibt (Private Key)
+
+  --> "Ich gebe Output 0 aus Transaktion a1075d aus"
+
+OUTPUTS (Wohin geht das Geld?)
+========================================
+  Output 0: 10.00 BTC an "1Q2TW...Wm8H"   <-- Empfaenger
+  Output 1:  0.50 BTC an "12cbQ...xV8s"   <-- Wechselgeld zurueck
+```
+
+### Das JSON-Format (annotiert)
 
 ```json
 {
-  "hash": "abc123...",
-  "block_number": 126766,
-  "is_coinbase": false,
-  "input_count": 2,
-  "output_count": 2,
-  "inputs": [
+  "hash": "f4184fc...b4c2",           // Eindeutige TX-ID
+  "block_number": 170,                 // In welchem Block
+  "inputs": [                          // QUELLE des Geldes
     {
-      "index": 0,
-      "spent_transaction_hash": "prev111...",
-      "spent_output_index": 0,
-      "addresses": ["1Alice..."]
-    },
-    {
-      "index": 1,
-      "spent_transaction_hash": "prev222...",
-      "spent_output_index": 1,
-      "addresses": ["1Bob..."]
+      "spent_transaction_hash": "a1075d...8e3e",  // <-- Zeigt auf alten Output!
+      "spent_output_index": 0,         // Welcher Output der alten TX
+      "addresses": ["12cbQ...xV8s"]    // Wer signiert
     }
   ],
-  "outputs": [
+  "outputs": [                         // ZIEL des Geldes
     {
       "index": 0,
-      "value": 50000000,
-      "addresses": ["1Charlie..."]
-    },
-    {
-      "index": 1,
-      "value": 30000000,
-      "addresses": ["1Alice..."]
+      "value": 1000000000,             // 10 BTC (in Satoshi)
+      "addresses": ["1Q2TW...Wm8H"]    // Empfaenger
     }
   ]
 }
 ```
 
-**Was bedeutet das?**
-- `inputs`: Woher das Bitcoin kommt (referenziert frueheren Output)
-- `outputs`: Wohin das Bitcoin geht (neue "Muenzen")
-- `value`: Betrag in Satoshi (100.000.000 Satoshi = 1 BTC)
+**Einheit:** 100.000.000 Satoshi = 1 BTC
 
 ---
 
-## 2. Schritt 1: explode_outputs()
+## 2. Schritt 1: Outputs extrahieren (explode)
 
-**VORHER (nested):**
+**VORHER:** 1 Zeile mit Array
 
 | tx_hash | outputs |
 |---------|---------|
-| abc123 | [{index:0, value:50000000, addr:"1Charlie"}, {index:1, value:30000000, addr:"1Alice"}] |
+| f4184fc...b4c2 | [{idx:0, val:10BTC}, {idx:1, val:0.5BTC}] |
 
-**WAS PASSIERT:**
-
-```mermaid
-flowchart LR
-    A["1 Zeile mit Array"] --> B["explode()"]
-    B --> C["2 Zeilen (eine pro Output)"]
-```
-
-**NACHHER (flach):**
+**NACHHER:** Mehrere Zeilen (flach)
 
 | tx_hash | output_index | value | address |
 |---------|--------------|-------|---------|
-| abc123 | 0 | 50000000 | 1Charlie... |
-| abc123 | 1 | 30000000 | 1Alice... |
-
-**WARUM:** Flache Tabellen erlauben JOINs und Aggregationen mit SQL/Spark.
+| f4184fc...b4c2 | 0 | 10 BTC | 1Q2TW...Wm8H |
+| f4184fc...b4c2 | 1 | 0.5 BTC | 12cbQ...xV8s |
 
 ---
 
-## 3. Schritt 2: explode_inputs()
+## 3. Schritt 2: Inputs extrahieren (explode)
 
-**VORHER (nested):**
+**NACHHER:**
 
-| tx_hash | inputs |
-|---------|--------|
-| abc123 | [{spent_tx:"prev111", spent_idx:0}, {spent_tx:"prev222", spent_idx:1}] |
-
-**NACHHER (flach):**
-
-| tx_hash | spent_tx_hash | spent_output_index |
-|---------|---------------|-------------------|
-| abc123 | prev111... | 0 |
-| abc123 | prev222... | 1 |
-
-**WARUM:** Diese Referenzen zeigen, welche Outputs ausgegeben wurden.
+| tx_hash | spent_tx_hash | spent_output_index | address |
+|---------|---------------|-------------------|---------|
+| f4184fc...b4c2 | a1075d...8e3e | 0 | 12cbQ...xV8s |
 
 ---
 
 ## 4. Schritt 3: UTXO Set berechnen
 
-**Das Problem:** Wir wollen nur UNSPENT Outputs (aktuelle Guthaben).
+### Was ist ein UTXO?
 
-```mermaid
-flowchart TB
-    subgraph outputs["Alle Outputs"]
-        O1["tx1:0 -> 5 BTC"]
-        O2["tx1:1 -> 3 BTC"]
-        O3["tx2:0 -> 2 BTC"]
-    end
+**UTXO = Unspent Transaction Output = Noch nicht ausgegebener Output**
 
-    subgraph inputs["Spent-Referenzen"]
-        I1["spent: tx1:0"]
-    end
+Jeder Output ist wie ein Geldschein. Wenn du ihn ausgibst, existiert er nicht mehr.
 
-    subgraph utxo["UTXO Set"]
-        U1["tx1:1 -> 3 BTC"]
-        U2["tx2:0 -> 2 BTC"]
-    end
+### Schritt-fuer-Schritt Beispiel
 
-    outputs --> |"LEFT ANTI JOIN"| utxo
-    inputs --> |"was rausfliegt"| O1
+**3 Outputs existieren:**
+
+| tx_hash | output_index | value |
+|---------|--------------|-------|
+| TX-100 | 0 | 5 BTC |
+| TX-100 | 1 | 3 BTC |
+| TX-200 | 0 | 2 BTC |
+
+**TX-300 gibt einen davon aus:**
+
+| spent_tx_hash | spent_output_index |
+|---------------|-------------------|
+| TX-100 | 0 |
+
+### LEFT ANTI JOIN visualisiert
+
+```
+ALLE OUTPUTS:                    SPENT-REFERENZEN:
++---------------+                +---------------+
+| TX-100:0 5BTC | <-- Match! --> | TX-100:0      |  --> RAUS!
+| TX-100:1 3BTC |                +---------------+
+| TX-200:0 2BTC |
++---------------+
+
+ERGEBNIS (UTXOs = was NICHT gematcht hat):
++---------------+
+| TX-100:1 3BTC |  <-- Noch nicht ausgegeben
+| TX-200:0 2BTC |  <-- Noch nicht ausgegeben
++---------------+
 ```
 
-**SQL-Logik:**
-
+**Als SQL:**
 ```sql
 SELECT * FROM outputs
 WHERE (tx_hash, output_index) NOT IN (
@@ -142,93 +132,76 @@ WHERE (tx_hash, output_index) NOT IN (
 )
 ```
 
-**WARUM:** Nur UTXOs haben aktuellen Wert. Spent Outputs sind "verbraucht".
-
 ---
 
-## 5. Schritt 4: Entity Clustering (Common Input Ownership)
+## 5. Schritt 4: Entity Clustering
 
-### Die Kernidee
+### Die Kern-Idee
 
-**WARUM funktioniert das?**
+Wenn eine Transaktion **mehrere Inputs** hat, muessen alle vom **selben Besitzer** kommen - nur er hat alle Private Keys!
 
+### Konkretes Beispiel
+
+**TX-500 hat 2 Inputs:**
 ```
-Transaktion X hat 2 Inputs:
-  - Input 1: von Adresse A (braucht Private Key A)
-  - Input 2: von Adresse B (braucht Private Key B)
-
--> Nur wer BEIDE Keys hat, kann signieren!
--> A und B gehoeren derselben Person!
+- 2 BTC von Adresse 1A1zP...fNa (braucht Private Key A)
+- 3 BTC von Adresse 1BvBM...qhx (braucht Private Key B)
 ```
 
-### Beispiel mit echten Transaktionen
+**Schlussfolgerung:** `1A1zP...fNa` und `1BvBM...qhx` = SELBER BESITZER!
 
-**Transaktion 1:**
-
-| tx_hash | input_addresses |
-|---------|-----------------|
-| tx_001 | [1Alice, 1Bob] |
-
-**Transaktion 2:**
-
-| tx_hash | input_addresses |
-|---------|-----------------|
-| tx_002 | [1Bob, 1Charlie] |
-
-**Graph-Kanten erstellen:**
+### Graph aufbauen
 
 ```mermaid
 graph LR
-    subgraph tx1["TX 001"]
-        A1((Alice)) --- B1((Bob))
+    subgraph TX-500["TX-500"]
+        A["1A1zP...fNa"] --- B["1BvBM...qhx"]
     end
-
-    subgraph tx2["TX 002"]
-        B2((Bob)) --- C1((Charlie))
+    subgraph TX-600["TX-600"]
+        B2["1BvBM...qhx"] --- C["1Feex...t4L"]
     end
-
-    style A1 fill:#e8f5e9
-    style B1 fill:#e8f5e9
-    style B2 fill:#e8f5e9
-    style C1 fill:#e8f5e9
 ```
 
-**Connected Components findet:**
+### Connected Components findet Gruppen
 
-| address | entity_id |
+| Adresse | Entity ID |
 |---------|-----------|
-| 1Alice | 1 |
-| 1Bob | 1 |
-| 1Charlie | 1 |
+| 1A1zP...fNa | 1 |
+| 1BvBM...qhx | 1 |
+| 1Feex...t4L | 1 |
+| 3D2oe...mW9 | 2 |
 
-**WARUM Connected Components?** Transitive Verknuepfung: A-B und B-C -> A,B,C zusammen.
+A verbunden mit B, B verbunden mit C --> A, B, C = Entity 1
 
 ---
 
 ## 6. Schritt 5: Whale Detection
 
-**Input: entities.parquet + utxos.parquet**
-
 ```mermaid
 flowchart LR
-    E["entities.parquet<br/>(address -> entity_id)"]
-    U["utxos.parquet<br/>(address -> value)"]
-
-    E --> J["JOIN auf address"]
-    U --> J
-    J --> G["GROUP BY entity_id<br/>SUM(value)"]
-    G --> W["Filter: >= 1000 BTC"]
+    E["entities.parquet"] --> J["JOIN"]
+    U["utxos.parquet"] --> J
+    J --> G["GROUP BY Entity<br/>SUM(BTC)"]
+    G --> F["Filter >= 1000 BTC"]
 ```
 
-**Berechnung:**
+### Beispiel-Rechnung
 
-| entity_id | addresses | total_btc |
-|-----------|-----------|-----------|
-| 42 | 150 | 5,230 |
-| 17 | 89 | 2,100 |
-| 99 | 12 | 1,050 |
+**UTXOs:**
 
-**WARUM:** Eine Entity mit 150 Adressen a 35 BTC = unsichtbarer Wal!
+| address | value |
+|---------|-------|
+| 1A1zP...fNa | 500 BTC |
+| 1BvBM...qhx | 300 BTC |
+| 1Feex...t4L | 200 BTC |
+
+**Entities:** Alle drei = Entity 1
+
+**Nach JOIN + GROUP BY:**
+
+| entity_id | adressen | total_btc |
+|-----------|----------|-----------|
+| 1 | 3 | **1000 BTC = WAL!** |
 
 ---
 
@@ -236,28 +209,19 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    RAW[("bitcoin-etl JSON<br/>Nested Arrays")]
-
+    RAW[("transactions.tsv<br/>382.000 TXs")]
     RAW --> EO["explode_outputs()"]
     RAW --> EI["explode_inputs()"]
-
-    EO --> OUT["outputs.parquet"]
-    EI --> INP["inputs.parquet"]
-
-    OUT --> UTXO["compute_utxo_set()"]
+    EO --> OUT[("outputs.parquet<br/>769.000")]
+    EI --> INP[("inputs.parquet<br/>592.000")]
+    OUT --> UTXO["LEFT ANTI JOIN"]
     INP --> UTXO
-    UTXO --> UTXOP["utxos.parquet"]
-
-    INP --> ENRICH["enrich_clustering_inputs()"]
-    OUT --> ENRICH
-    ENRICH --> GRAPH["Graph: Adressen = Knoten<br/>Multi-Input = Kanten"]
-    GRAPH --> CC["Connected Components"]
-    CC --> ENT["entities.parquet"]
-
-    UTXOP --> WHALE["Balance pro Entity"]
+    UTXO --> UTXOP[("utxos.parquet<br/>177.000")]
+    INP --> CC["Connected Components"]
+    CC --> ENT[("entities.parquet<br/>109.000")]
+    UTXOP --> WHALE["JOIN + SUM"]
     ENT --> WHALE
     WHALE --> RESULT[("Whales >= 1000 BTC")]
-
     style RAW fill:#e3f2fd
     style RESULT fill:#ff6b6b,color:#fff
 ```
@@ -266,11 +230,12 @@ flowchart TB
 
 ## 8. Metriken (H1/2011 Testdaten)
 
-| Schritt | Input | Output | Reduktion |
-|---------|-------|--------|-----------|
-| Transaktionen laden | JSON | 382.000 TXs | - |
-| explode_outputs | 382k TXs | 769.000 Outputs | - |
-| UTXO berechnen | 769k Outputs | 177.000 UTXOs | 77% spent |
-| Entity Clustering | 148k Adressen | 109k Entities | 26% gruppiert |
+| Schritt | Vorher | Nachher | Was passiert |
+|---------|--------|---------|--------------|
+| Laden | TSV | 382.000 TXs | Rohdaten einlesen |
+| Outputs | 382k TXs | 769.000 | explode() |
+| Inputs | 382k TXs | 592.000 | explode() |
+| UTXOs | 769k | 177.000 | 77% wurden ausgegeben |
+| Entities | 148.000 Adressen | 109.000 | 26% gruppiert |
 
-**26% Reduktion** = Viele Adressen wurden als zusammengehoerig erkannt.
+**26% Reduktion:** Fast ein Viertel aller Adressen gehoeren zu Mehrfach-Besitzern!

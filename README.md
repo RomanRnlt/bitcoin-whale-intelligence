@@ -1,69 +1,92 @@
 # Bitcoin Whale Intelligence
 
-> Versteckte Bitcoin-Wale durch Entity Clustering identifizieren
-
-## Inhaltsverzeichnis
-
-1. [Das Problem](#das-problem)
-2. [Die Lösung: Common Input Ownership](#die-loesung-common-input-ownership)
-3. [Pipeline-Übersicht](#pipeline-uebersicht)
-4. [Quick Start](#quick-start)
-5. [Projekt-Status](#projekt-status)
-6. [Dokumentation](#dokumentation)
-7. [Tech Stack](#tech-stack)
-8. [Projektstruktur](#projektstruktur)
-9. [Metriken](#metriken-h12011-testdaten)
+> Versteckte Bitcoin-Wale durch Entity Clustering aufspueren
 
 ---
 
-## Das Problem
+## Das Problem: Versteckte Wale
 
-Ein Wal mit **5.000 BTC** kann diese auf 1.000 Adressen verteilen. Ohne Analyse sieht das aus wie 1.000 kleine Besitzer.
+Ein Bitcoin-Wal mit **5.000 BTC** kann sein Vermoegen auf hunderte Adressen verteilen. Auf der Blockchain sieht das aus wie viele kleine Besitzer:
 
+```mermaid
+flowchart LR
+    subgraph blockchain["Was die Blockchain zeigt"]
+        A1["1A1zP...fNa<br/>500 BTC"]
+        A2["1BvBM...qhx<br/>300 BTC"]
+        A3["1Feex...t4L<br/>200 BTC"]
+        A4["12cbQ...xV8s<br/>150 BTC"]
+        A5["1Q2TW...Wm8H<br/>100 BTC"]
+    end
+
+    subgraph reality["Die Realitaet"]
+        W["EINE Person<br/>1.250 BTC<br/>= WAL!"]
+    end
+
+    A1 --> W
+    A2 --> W
+    A3 --> W
+    A4 --> W
+    A5 --> W
+
+    style W fill:#ff6b6b,color:#fff
 ```
-Blockchain zeigt:          Realitaet:
-Adresse A: 500 BTC    ─┐
-Adresse B: 300 BTC    ─┼──>  Entity X: 1.000 BTC (WAL!)
-Adresse C: 200 BTC    ─┘
-```
+
+**Ohne Analyse:** 5 harmlose Adressen mit 100-500 BTC
+**Mit Analyse:** 1 Wal mit 1.250 BTC!
+
+---
 
 ## Die Loesung: Common Input Ownership
 
-Wenn eine Transaktion mehrere Adressen als Inputs kombiniert, gehoeren diese derselben Person - nur sie besitzt alle Private Keys.
+Wenn jemand eine Transaktion erstellt die **mehrere Adressen als Inputs** kombiniert, muss er alle Private Keys besitzen. Diese Adressen gehoeren also derselben Person!
 
-```
-TX-123: Input von A + Input von B  -->  A und B = gleicher Besitzer
+```mermaid
+flowchart TB
+    subgraph tx["Transaktion TX-500"]
+        I1["Input 1:<br/>2 BTC von 1A1zP...fNa"]
+        I2["Input 2:<br/>3 BTC von 1BvBM...qhx"]
+        O["Output:<br/>4.99 BTC an 1Feex...t4L"]
+
+        I1 --> O
+        I2 --> O
+    end
+
+    subgraph conclusion["Schlussfolgerung"]
+        C["1A1zP...fNa und 1BvBM...qhx<br/>= SELBER BESITZER<br/>(beide Keys zum Signieren noetig)"]
+    end
+
+    tx --> conclusion
+
+    style conclusion fill:#c8e6c9
 ```
 
 ---
 
 ## Pipeline-Uebersicht
 
-```
-bitcoin-etl JSON
-       |
-       v
-+------------------+     +------------------+
-| explode_outputs  | --> | outputs.parquet  |
-+------------------+     +------------------+
-       |                         |
-       v                         v
-+------------------+     +------------------+
-| explode_inputs   | --> | inputs.parquet   |
-+------------------+     +------------------+
-       |                         |
-       v                         v
-+------------------+     +------------------+
-| compute_utxo_set | --> | utxos.parquet    |
-+------------------+     +------------------+
-       |
-       v
-+------------------+     +------------------+
-| Graph + CC       | --> | entities.parquet |
-+------------------+     +------------------+
-       |
-       v
-  WHALE DETECTION
+```mermaid
+flowchart TB
+    RAW[("transactions.tsv<br/>Blockchair Export<br/>382.000 TXs")]
+
+    RAW --> EO["1. explode_outputs()<br/>Nested Array -> Zeilen"]
+    RAW --> EI["2. explode_inputs()<br/>Nested Array -> Zeilen"]
+
+    EO --> OUT[("outputs.parquet<br/>769.000 Zeilen")]
+    EI --> INP[("inputs.parquet<br/>592.000 Zeilen")]
+
+    OUT --> UTXO["3. UTXO berechnen<br/>LEFT ANTI JOIN"]
+    INP --> UTXO
+    UTXO --> UTXOP[("utxos.parquet<br/>177.000 aktive Outputs")]
+
+    INP --> CC["4. Entity Clustering<br/>Connected Components"]
+    CC --> ENT[("entities.parquet<br/>109.000 Entities")]
+
+    UTXOP --> WHALE["5. Whale Detection<br/>JOIN + SUM + Filter"]
+    ENT --> WHALE
+    WHALE --> RESULT[("Gefundene Wale<br/>>= 1000 BTC")]
+
+    style RAW fill:#e3f2fd
+    style RESULT fill:#ff6b6b,color:#fff
 ```
 
 ---
@@ -73,7 +96,7 @@ bitcoin-etl JSON
 ```bash
 git clone https://github.com/RomanRnlt/bitcoin-whale-intelligence.git
 cd bitcoin-whale-intelligence
-python3 -m venv venv && source venv/bin/activate
+python3 -m venv venv && source venv/activate
 pip install -r requirements.txt
 ./start_project.sh
 ```
@@ -84,14 +107,14 @@ Siehe [docs/setup.md](docs/setup.md) fuer Details.
 
 ## Projekt-Status
 
-| Status | Komponente |
-|--------|------------|
-| Fertig | Daten laden (bitcoin-etl JSON) |
-| Fertig | Transformation (explode) |
-| Fertig | UTXO-Set Berechnung |
-| Fertig | Entity Clustering (Connected Components) |
-| Geplant | Whale Detection (Balance pro Entity) |
-| Geplant | Verhaltensanalyse |
+| Status | Komponente | Beschreibung |
+|--------|------------|--------------|
+| Fertig | Daten laden | Blockchair TSV einlesen |
+| Fertig | explode_outputs() | Nested -> Flach |
+| Fertig | explode_inputs() | Nested -> Flach |
+| Fertig | UTXO-Set | Aktive Guthaben berechnen |
+| Fertig | Entity Clustering | Connected Components |
+| Geplant | Whale Detection | Balance pro Entity |
 
 ---
 
@@ -99,8 +122,8 @@ Siehe [docs/setup.md](docs/setup.md) fuer Details.
 
 | Dokument | Inhalt |
 |----------|--------|
-| [docs/architecture.md](docs/architecture.md) | Pipeline mit VORHER/NACHHER Beispielen |
-| [docs/setup.md](docs/setup.md) | Installation, Konfiguration |
+| [docs/architecture.md](docs/architecture.md) | **Pipeline mit VORHER/NACHHER Beispielen** |
+| [docs/setup.md](docs/setup.md) | Installation und Konfiguration |
 
 ---
 
@@ -108,10 +131,10 @@ Siehe [docs/setup.md](docs/setup.md) fuer Details.
 
 | Technologie | Zweck |
 |-------------|-------|
-| Apache Spark | Verteilte Verarbeitung (900M+ TXs) |
-| GraphFrames | Connected Components Algorithmus |
-| Parquet | Spalten-Storage (70-90% Kompression) |
-| bitcoin-etl | Datenexport vom Full Node |
+| **Apache Spark** | Verteilte Verarbeitung (900M+ Transaktionen) |
+| **GraphFrames** | Connected Components Algorithmus |
+| **Parquet** | Spalten-Storage (70-90% Kompression) |
+| **Blockchair** | Bitcoin-Datenexport (TSV Format) |
 
 ---
 
@@ -134,14 +157,15 @@ bitcoin-whale-intelligence/
 
 ## Metriken (H1/2011 Testdaten)
 
-| Metrik | Wert |
-|--------|------|
-| Transaktionen | 382.000 |
-| Outputs | 769.000 |
-| UTXOs | 177.000 |
-| Adressen im Graph | 148.000 |
-| Entities | 109.000 |
-| **Reduktion** | **26%** |
+| Schritt | Input | Output | Info |
+|---------|-------|--------|------|
+| Transaktionen | - | 382.000 | Rohdaten |
+| Outputs | 382k TXs | 769.000 | explode() |
+| Inputs | 382k TXs | 592.000 | explode() |
+| **UTXOs** | 769k | **177.000** | 77% spent |
+| **Entities** | 148k Adressen | **109.000** | 26% gruppiert |
+
+**26% Reduktion:** Ueber ein Viertel aller Adressen gehoeren zu Mehrfach-Besitzern und konnten gruppiert werden!
 
 ---
 
