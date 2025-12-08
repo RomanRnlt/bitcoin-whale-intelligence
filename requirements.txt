@@ -6,149 +6,56 @@
 # ============================================================================
 
 # PySpark - Distributed computing framework
-pyspark==3.4.1
+pyspark>=3.4.0
 
-# GraphFrames - Graph processing for Spark
-graphframes==0.6
-
-# ============================================================================
-# Google BigQuery Integration
-# ============================================================================
-
-# Google Cloud BigQuery client
-google-cloud-bigquery==3.11.4
-
-# BigQuery Storage API (for faster data transfer)
-google-cloud-bigquery-storage==2.22.0
-
-# DB-Types for BigQuery datetime handling
-db-dtypes>=1.4.0
-
-# Spark BigQuery connector (loaded via Maven at runtime)
-# Note: This is loaded via spark.jars.packages config, not pip
+# GraphFrames - Graph processing for Spark (Connected Components)
+# Note: Loaded via spark.jars.packages at runtime
 
 # ============================================================================
 # Data Manipulation & Analysis
 # ============================================================================
 
 # Pandas - DataFrame operations
-pandas==2.0.3
+pandas>=2.0.0
 
 # NumPy - Numerical computing
-numpy==1.24.3
+numpy>=1.24.0
 
 # PyArrow - Fast serialization for Parquet
-pyarrow==12.0.1
-
-# ============================================================================
-# Machine Learning
-# ============================================================================
-
-# Scikit-learn - Additional ML algorithms
-scikit-learn==1.3.0
-
-# XGBoost - Gradient boosting (optional, for advanced ML)
-xgboost==1.7.6
-
-# Imbalanced-learn - Handle imbalanced datasets
-imbalanced-learn==0.11.0
+pyarrow>=12.0.0
 
 # ============================================================================
 # Visualization
 # ============================================================================
 
 # Matplotlib - Static plotting
-matplotlib==3.7.2
+matplotlib>=3.7.0
 
 # Seaborn - Statistical visualizations
-seaborn==0.12.2
+seaborn>=0.12.0
 
-# Plotly - Interactive charts
-plotly==5.15.0
-
-# NetworkX - Graph visualization
-networkx==3.1
+# NetworkX - Graph visualization (optional)
+networkx>=3.0
 
 # ============================================================================
 # Jupyter & Notebooks
 # ============================================================================
 
 # Jupyter - Interactive notebooks
-jupyter==1.0.0
+jupyter>=1.0.0
 
 # IPython - Enhanced Python shell
-ipython==8.14.0
-
-# Jupyter widgets - Interactive widgets
-ipywidgets==8.1.0
-
-# Jupyter contrib extensions - Additional features
-jupyter_contrib_nbextensions==0.7.0
+ipython>=8.0.0
 
 # ============================================================================
 # Utilities
 # ============================================================================
 
 # Python-dotenv - Environment variable management
-python-dotenv==1.0.0
+python-dotenv>=1.0.0
 
 # Tqdm - Progress bars
-tqdm==4.65.0
-
-# Requests - HTTP library
-requests==2.31.0
-
-# ============================================================================
-# Testing
-# ============================================================================
-
-# Pytest - Testing framework
-pytest==7.4.0
-
-# Pytest-cov - Coverage reporting
-pytest-cov==4.1.0
-
-# ============================================================================
-# Code Quality
-# ============================================================================
-
-# Black - Code formatter
-black==23.7.0
-
-# Flake8 - Linting
-flake8==6.1.0
-
-# isort - Import sorting
-isort==5.12.0
-
-# ============================================================================
-# Documentation
-# ============================================================================
-
-# Sphinx - Documentation generation (optional)
-# sphinx==7.1.2
-
-# ============================================================================
-# Development Tools
-# ============================================================================
-
-# Jupyter Book - For creating documentation (optional)
-# jupyter-book==0.15.1
-
-# ============================================================================
-# Optional: Databricks Integration
-# ============================================================================
-
-# Databricks Connect (if using Databricks)
-# databricks-connect==13.3.0
-
-# ============================================================================
-# Version Notes
-# ============================================================================
-
-# Python version: 3.8, 3.9, or 3.10 recommended
-# Java version: 8 or 11 required for PySpark
-# Spark version: 3.4.1 (matches PySpark version)
+tqdm>=4.65.0
 
 # ============================================================================
 # Installation Instructions
@@ -157,32 +64,18 @@ isort==5.12.0
 # To install all dependencies:
 #   pip install -r requirements.txt
 
-# To install with specific Spark/Java versions:
-#   1. Install Java 11: brew install openjdk@11 (macOS)
-#   2. Set JAVA_HOME: export JAVA_HOME=$(/usr/libexec/java_home -v 11)
-#   3. Install requirements: pip install -r requirements.txt
+# Required: Java 11+ for PySpark
+#   macOS: brew install openjdk@11
+#   Set JAVA_HOME: export JAVA_HOME=$(/usr/libexec/java_home -v 11)
 
-# For GraphFrames, you also need to configure Spark:
-#   spark = SparkSession.builder \
-#       .config("spark.jars.packages", "graphframes:graphframes:0.8.2-spark3.2-s_2.12") \
-#       .getOrCreate()
-
-# For BigQuery connector:
-#   spark = SparkSession.builder \
-#       .config("spark.jars.packages", "com.google.cloud.spark:spark-bigquery-with-dependencies_2.12:0.27.1") \
-#       .getOrCreate()
+# GraphFrames is loaded automatically via Spark at runtime:
+#   spark.jars.packages = graphframes:graphframes:0.8.3-spark3.5-s_2.12
 
 # ============================================================================
-# Notes for Professor / Team
+# Minimal Installation
 # ============================================================================
 
-# Minimal installation (just to run notebooks with sample data):
-#   pip install pyspark pandas matplotlib jupyter
-
-# Full installation (for BigQuery and all features):
-#   pip install -r requirements.txt
-
-# If you encounter issues with specific versions, you can try:
-#   pip install -r requirements.txt --no-cache-dir
+# Just to run notebooks:
+#   pip install pyspark pandas matplotlib seaborn jupyter
 
 # ============================================================================
