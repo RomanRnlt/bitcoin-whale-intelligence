@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*-
 """
 Bitcoin Whale Intelligence - Source Module
 
-Enthält ETL-Funktionen für Bitcoin-Datenverarbeitung.
+ETL functions for Bitcoin blockchain data processing.
 """
 
 from .etl import (
