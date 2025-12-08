@@ -1,216 +1,111 @@
 # Bitcoin Whale Intelligence
 
-Master-Projekt zur Identifikation von Bitcoin-Whales durch Entity Resolution auf der Blockchain.
-
-**Modul:** Advanced Data Engineering
-**Studiengang:** Wirtschaftsinformatik (Master)
-
-## Inhaltsverzeichnis
-
-- [Projektübersicht](#projektübersicht)
-- [Datenquelle](#datenquelle)
-- [Notebook: Entity Clustering](#notebook-entity-clustering)
-- [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
-- [Projektstruktur](#projektstruktur)
-
-**Neu im Projekt?** Starte mit [SIMPLE_EXPLANATION.md](docs/SIMPLE_EXPLANATION.md) für eine verständliche Einführung.
+Ein Master-Projekt im Modul Advanced Data Engineering, das untersucht, wer wirklich hinter Bitcoin-Adressen steckt und versteckte "Wale" sichtbar macht.
 
 ---
 
-## Projektübersicht
+## Was ist Bitcoin Whale Intelligence?
 
-### Das Problem
-
-**800 Millionen Bitcoin-Adressen existieren - aber wer besitzt sie wirklich?**
-
-| Konzept | Beschreibung | In Blockchain sichtbar? |
-|---------|--------------|-------------------------|
-| **Adresse** | Einzelner "Briefkasten" (z.B. `bc1q...`) | Ja |
-| **Wallet** | Software die tausende Adressen verwaltet | Nein |
-| **Entity** | Die tatsächliche Person/Firma dahinter | Nein |
-
-**Beispiel:** Ein Whale mit 5000 BTC könnte diese über 1000 verschiedene Adressen verteilt haben. Ohne Analyse sieht man 1000 kleine Holder statt 1 großen Whale.
-
-### Die Lösung: Common Input Ownership Heuristic
-
-**Kernidee:** Wenn eine Bitcoin-Transaction mehrere Adressen als Inputs kombiniert, gehören alle zur selben Person.
-
-**Warum?** Bitcoin funktioniert mit "Münzen" (UTXOs) statt Kontoständen:
-- Jede "Münze" muss vollständig ausgegeben werden
-- Wenn eine nicht reicht → mehrere kombinieren
-- Um mehrere zu kombinieren → braucht man alle Private Keys
-- **Nur eine Person kann alle Keys besitzen**
-
-```
-Person X sendet 0.7 BTC, hat aber nur:
-  Adresse A: 0.5 BTC
-  Adresse B: 0.3 BTC
-
-Muss beide kombinieren:
-  Transaction Inputs: A (0.5) + B (0.3) = 0.8 BTC
-
-→ Beweis: A und B gehören zur gleichen Person!
-```
-
-### Pipeline
-
-```
-Bitcoin-ETL JSON Export
-      │
-      ▼ Spark ETL
-      │
-      ├──► outputs.parquet  (alle Outputs)
-      ├──► inputs.parquet   (alle Inputs mit Spent-Referenzen)
-      └──► utxos.parquet    (Unspent Transaction Outputs)
-                │
-                ▼ GraphFrames Connected Components
-                │
-                └──► entities.parquet (address → entity_id Mapping)
-```
+Bitcoin Whale Intelligence ist ein Datenanalyse-Projekt, das große Bitcoin-Besitzer ("Wale") identifiziert. Das Besondere: Diese Wale verstecken sich oft hinter hunderten oder tausenden von Adressen. Unser Ziel ist es, diese Adressen zusammenzuführen und zu zeigen, wer wirklich wie viel Bitcoin besitzt.
 
 ---
 
-## Datenquelle
+## Das Problem
 
-Die Blockchain-Daten werden mit [bitcoin-etl](https://github.com/blockchain-etl/bitcoin-etl) von einem Bitcoin Full Node exportiert:
+**800 Millionen Bitcoin-Adressen existieren auf der Blockchain - aber wer besitzt sie wirklich?**
 
-```bash
-bitcoinetl export_all \
-    --provider-uri http://user:pass@localhost:8332 \
-    --start 2011-01-01 --end 2011-06-01 \
-    --output-dir /path/to/blockchain_exports
-```
+Die Blockchain zeigt nur einzelne Adressen und deren Transaktionen. Was man nicht sieht:
 
-### Datenstruktur
+- **Wem die Adressen gehören**: Eine Adresse ist nur eine Zeichenkette, kein Name
+- **Welche Adressen zusammengehören**: Eine Person kann beliebig viele Adressen haben
+- **Wie viel jemand wirklich besitzt**: Die Summe ist über viele Adressen verteilt
 
-```
-blockchain_exports/
-└── 2011-01-01_2011-06-01/
-    ├── blocks/
-    │   └── date=YYYY-MM-DD/
-    │       └── blocks_*.json
-    └── transactions/
-        └── date=YYYY-MM-DD/
-            └── transactions_*.json
-```
-
-**Format:** Hive-partitionierte, zeilenbasierte JSON (JSONL)
-
-**Besonderheit:** Transaktionen enthalten **nested Arrays** für inputs und outputs:
-
-```json
-{
-  "hash": "abc123...",
-  "input_count": 3,
-  "inputs": [
-    {"spent_transaction_hash": "...", "spent_output_index": 0, "addresses": [...]},
-    ...
-  ],
-  "outputs": [
-    {"index": 0, "value": 50000000, "addresses": ["bc1q..."]},
-    ...
-  ]
-}
-```
+**Ein Beispiel:** Stellen Sie sich einen Wal vor, der 5.000 Bitcoin besitzt. Diese 5.000 Bitcoin könnten auf 1.000 verschiedene Adressen verteilt sein, jede mit nur 5 Bitcoin. Ohne Analyse sieht das aus wie 1.000 kleine Besitzer. In Wirklichkeit ist es eine einzige Person.
 
 ---
 
-## Notebook: Entity Clustering
+## Die Lösung: Wem gehören diese Adressen?
 
-**Notebook:** [01_entity_clustering.ipynb](notebooks/01_entity_clustering.ipynb)
+Es gibt einen Trick, um herauszufinden, welche Adressen derselben Person gehören. Er basiert auf der Funktionsweise von Bitcoin.
 
-Ein einzelnes Notebook das die komplette Pipeline abdeckt:
+### Wie Bitcoin funktioniert
+
+Bitcoin funktioniert nicht mit Kontoständen wie eine Bank. Stattdessen gibt es "Münzen" (sogenannte UTXOs). Wenn Sie Bitcoin erhalten, bekommen Sie eine Münze mit einem bestimmten Wert. Diese Münze können Sie später ausgeben.
+
+**Der Schlüssel:** Wenn eine Münze nicht reicht, müssen Sie mehrere kombinieren. Und genau da liegt der Hinweis.
+
+### Das Beispiel mit Alice
+
+Alice möchte 0,7 Bitcoin an Bob senden. Sie hat aber:
+
+- Adresse A: eine Münze mit 0,5 BTC
+- Adresse B: eine Münze mit 0,3 BTC
+
+Keine der beiden reicht aus. Also kombiniert Alice beide Münzen in einer Transaktion: 0,5 + 0,3 = 0,8 BTC. Sie sendet 0,7 an Bob und bekommt 0,1 als Wechselgeld zurück.
+
+**Was das verrät:** Um beide Münzen zu kombinieren, braucht Alice Zugang zu beiden Adressen. Sie muss also beide besitzen. Diese Transaktion beweist: Adresse A und Adresse B gehören derselben Person.
+
+### Der Graph-Algorithmus
+
+Wir nutzen diese Erkenntnis systematisch:
+
+1. Wir suchen alle Transaktionen, bei denen mehrere Münzen kombiniert wurden
+2. Alle Adressen in so einer Transaktion verbinden wir als "zusammengehörig"
+3. Ein Graph-Algorithmus findet dann alle Verbindungen und bildet Gruppen (sogenannte "Entities")
+
+Am Ende hat jede Adresse eine Entity-ID. Alle Adressen mit der gleichen ID gehören wahrscheinlich derselben Person oder Organisation.
+
+---
+
+## Was das Projekt macht
+
+Die Analyse-Pipeline besteht aus mehreren Schritten:
 
 ### 1. Daten laden
-- Bitcoin-ETL JSON Daten mit Spark laden
-- Hive-Partitionen automatisch erkennen
 
-### 2. ETL zu Parquet
-- Nested JSON → flache Parquet-Tabellen
-- 10x schnelleres Lesen bei wiederholten Analysen
+Bitcoin-Blockchain-Daten werden von einem Bitcoin Full Node exportiert. Diese Rohdaten enthalten alle Transaktionen mit allen Details.
+
+### 2. Transformation
+
+Die Rohdaten liegen als JSON vor. Wir wandeln sie in das Parquet-Format um. Das ist ein optimiertes Datenformat, das die Analyse deutlich beschleunigt.
 
 ### 3. UTXO Set berechnen
-- Alle Outputs MINUS ausgegebene Outputs
-- Ergebnis: Alle "Münzen" die noch existieren
 
-### 4. Multi-Input Analyse
-- Transaktionen mit ≥2 Inputs identifizieren
-- Diese zeigen Adress-Zusammengehörigkeit
-- Filter: 2-50 Inputs (>50 = wahrscheinlich Exchange)
+UTXO steht für "Unspent Transaction Output" - also Münzen, die noch nicht ausgegeben wurden. Wir berechnen, welche Münzen aktuell existieren und welchen Wert sie haben.
 
-### 5. Entity Clustering
-- Graph aufbauen: Adressen = Knoten, gemeinsame Inputs = Kanten
-- GraphFrames Connected Components Algorithmus
-- Ergebnis: Jede Adresse bekommt eine entity_id
+### 4. Entity Clustering
 
-### Output-Dateien
+Der Kernschritt: Wir analysieren alle Transaktionen mit mehreren Eingaben und gruppieren die beteiligten Adressen. Ein Graph-Algorithmus (Connected Components) findet alle zusammengehörigen Adressen.
 
-```
-data/
-├── outputs.parquet     # Alle Transaction Outputs
-├── inputs.parquet      # Alle Inputs mit Spent-Referenzen
-├── utxos.parquet       # Unspent Transaction Outputs
-└── entities.parquet    # address → entity_id Mapping
-```
+### 5. Whale Detection (geplant)
+
+Mit den Entity-Gruppen können wir berechnen, wie viel Bitcoin jede Entity besitzt. Entities mit mehr als 1.000 Bitcoin sind potenzielle Wale.
+
+### 6. Verhaltensanalyse (geplant)
+
+Wie verhalten sich die Wale? Kaufen sie gerade zu (Akkumulation) oder verkaufen sie (Distribution)? Diese Informationen können wertvolle Einblicke liefern.
 
 ---
 
-## Tech Stack
+## Aktueller Stand
 
-| Komponente | Technologie |
-|------------|-------------|
-| **Processing** | Apache Spark (PySpark) |
-| **Graph-Analyse** | GraphFrames |
-| **Datenformat** | Parquet (optimiert) |
-| **Environment** | Jupyter Notebooks |
-| **Python** | 3.11+ |
-| **Java** | 11+ (für Spark) |
-
-### Abhängigkeiten
-
-```bash
-pip install pyspark graphframes pandas matplotlib seaborn
-```
+| Status | Schritt |
+|--------|---------|
+| Erledigt | Daten laden und transformieren |
+| Erledigt | UTXO Set Berechnung |
+| Erledigt | Entity Clustering mit Graph-Algorithmus |
+| Offen | Whale Detection (Balance pro Entity) |
+| Offen | Verhaltensanalyse |
 
 ---
 
-## Quick Start
+## Technologie
 
-### 1. Voraussetzungen
+Das Projekt nutzt bewährte Big-Data-Technologien:
 
-- Python 3.11+
-- Java 11+ (für Spark)
-- Bitcoin-ETL exportierte Daten
-
-### 2. Repository klonen
-
-```bash
-git clone https://github.com/your-username/bitcoin-whale-intelligence.git
-cd bitcoin-whale-intelligence
-```
-
-### 3. Dependencies installieren
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Projekt starten
-
-```bash
-./start_project.sh
-```
-
-### 5. Notebook öffnen
-
-In Jupyter: `notebooks/01_entity_clustering.ipynb`
-
-**Wichtig:** Pfad zu den Daten anpassen:
-
-```python
-BLOCKCHAIN_DATA_PATH = "/path/to/blockchain_exports"
-```
+- **Apache Spark**: Ermöglicht die Verarbeitung riesiger Datenmengen, die nicht in den Arbeitsspeicher eines einzelnen Computers passen
+- **GraphFrames**: Eine Erweiterung für Spark, die Graph-Algorithmen auf großen Datenmengen ausführen kann
+- **Parquet**: Ein spaltenbasiertes Dateiformat, das Daten komprimiert speichert und schnelles Lesen ermöglicht
 
 ---
 
@@ -218,45 +113,38 @@ BLOCKCHAIN_DATA_PATH = "/path/to/blockchain_exports"
 
 ```
 bitcoin-whale-intelligence/
-├── notebooks/
-│   └── 01_entity_clustering.ipynb  # Haupt-Notebook
-├── src/
-│   ├── __init__.py
-│   └── etl.py                      # ETL-Funktionen
-├── data/                           # Generierte Parquet-Dateien
-├── docs/
-│   ├── SIMPLE_EXPLANATION.md       # Einführung für Einsteiger
-│   ├── PROJECT_CONTEXT.md          # Projekt-Details
-│   └── ...
-├── requirements.txt
-├── start_project.sh
-└── README.md
+├── notebooks/                    # Jupyter Notebooks mit der Analyse
+│   └── 01_entity_clustering.ipynb
+├── src/                          # Wiederverwendbare Funktionen
+│   └── etl.py
+├── data/                         # Generierte Datensätze
+│   ├── outputs.parquet
+│   ├── inputs.parquet
+│   └── utxos.parquet
+├── docs/                         # Dokumentation
+└── start_project.sh              # Startskript
 ```
 
-### src/etl.py
+**notebooks/**: Hier findet die eigentliche Analyse statt. Das Hauptnotebook führt durch alle Schritte der Pipeline.
 
-Kernfunktionen:
+**src/**: Enthält Funktionen, die von den Notebooks verwendet werden. Einmal geschrieben, mehrfach nutzbar.
 
-| Funktion | Beschreibung |
-|----------|--------------|
-| `create_spark_session()` | Optimierte Spark-Session erstellen |
-| `load_transactions()` | Bitcoin-ETL JSON laden |
-| `load_blocks()` | Block-Daten laden |
-| `explode_outputs()` | Nested → Flat für Outputs |
-| `explode_inputs()` | Nested → Flat für Inputs |
-| `compute_utxo_set()` | UTXO Set berechnen |
-| `enrich_clustering_inputs()` | Multi-Input TXs für Clustering vorbereiten |
+**data/**: Die verarbeiteten Datensätze werden hier als Parquet-Dateien gespeichert.
+
+**docs/**: Zusätzliche Dokumentation für tiefere Einblicke in das Projekt.
 
 ---
 
-## Nächste Schritte (geplant)
+## Bisherige Ergebnisse
 
-Mit dem Entity-Mapping (`entities.parquet`) können weitere Analysen durchgeführt werden:
+Mit dem Entity Clustering konnten bereits beeindruckende Ergebnisse erzielt werden:
 
-- **Whale Detection**: Entity-Balances berechnen, Entities mit ≥1000 BTC identifizieren
-- **Verhaltensanalyse**: Akkumulation vs. Distribution über Zeit tracken
-- **Exchange-Identifikation**: Entities mit ungewöhnlichen Mustern klassifizieren
+- **Millionen von Transaktionen** wurden verarbeitet
+- **Adressen wurden zu Entities gruppiert**: Aus hunderttausenden einzelnen Adressen wurden deutlich weniger Entities
+- **Signifikante Reduktion**: Die Anzahl der "Besitzer" reduzierte sich um einen erheblichen Prozentsatz, was zeigt, dass viele Adressen zusammengehören
+
+Diese Ergebnisse bestätigen die Funktionsweise der Common Input Ownership Heuristik und bilden die Grundlage für die geplante Whale Detection.
 
 ---
 
-Master-Projekt | Advanced Data Engineering | Wirtschaftsinformatik
+*Master-Projekt | Advanced Data Engineering | Wirtschaftsinformatik*
