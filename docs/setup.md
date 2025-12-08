@@ -4,7 +4,7 @@
 
 - Python 3.11+
 - Java 11 (fuer Apache Spark)
-- Bitcoin-Blockchain-Daten (exportiert mit bitcoin-etl)
+- Bitcoin Full Node (fuer Datenexport)
 
 ## Quick Start
 
@@ -20,7 +20,7 @@ source venv/bin/activate
 # 3. Dependencies installieren
 pip install -r requirements.txt
 
-# 4. Starten
+# 4. Jupyter starten
 ./start_project.sh
 ```
 
@@ -29,13 +29,17 @@ pip install -r requirements.txt
 Die Daten werden mit [bitcoin-etl](https://github.com/blockchain-etl/bitcoin-etl) von einem Bitcoin Full Node exportiert:
 
 ```bash
+# Bitcoin-ETL installieren
+pip install bitcoin-etl
+
+# Daten exportieren (Beispiel: H1 2011)
 bitcoinetl export_all \
     --provider-uri http://user:pass@localhost:8332 \
     --start 2011-01-01 --end 2011-06-01 \
     --output-dir /path/to/blockchain_exports
 ```
 
-Die exportierten Daten haben diese Struktur:
+### Erwartete Verzeichnisstruktur
 
 ```
 blockchain_exports/
@@ -46,6 +50,14 @@ blockchain_exports/
     └── transactions/
         └── date=YYYY-MM-DD/
             └── transactions_*.json
+```
+
+### Pfad konfigurieren
+
+In `notebooks/01_entity_clustering.ipynb`:
+
+```python
+BLOCKCHAIN_DATA_PATH = "/path/to/blockchain_exports"
 ```
 
 ## Java installieren
@@ -67,3 +79,12 @@ sudo apt-get install openjdk-11-jdk
 2. Browser oeffnet sich mit Jupyter
 3. `notebooks/01_entity_clustering.ipynb` oeffnen
 4. Alle Zellen ausfuehren (Shift+Enter oder "Run All")
+
+## Troubleshooting
+
+| Problem | Loesung |
+|---------|---------|
+| "No batch folders found" | BLOCKCHAIN_DATA_PATH pruefen |
+| Java nicht gefunden | JAVA_HOME setzen |
+| GraphFrames-Fehler | Spark muss Internet-Zugang haben (laedt Pakete) |
+| Out of Memory | DRIVER_MEMORY erhoehen (z.B. "16g") |
