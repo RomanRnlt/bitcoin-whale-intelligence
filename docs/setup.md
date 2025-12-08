@@ -2,18 +2,22 @@
 
 ## Voraussetzungen
 
-- Python 3.11+
-- Java 11 (fuer Apache Spark)
-- Bitcoin Full Node (fuer Datenexport)
+| Software | Version | Zweck |
+|----------|---------|-------|
+| Python | 3.11+ | Jupyter, PySpark |
+| Java | 11 | Apache Spark Runtime |
+| Bitcoin Full Node | optional | Nur fuer eigenen Datenexport |
 
-## Quick Start
+---
+
+## Quick Start (3 Minuten)
 
 ```bash
 # 1. Repo klonen
 git clone https://github.com/RomanRnlt/bitcoin-whale-intelligence.git
 cd bitcoin-whale-intelligence
 
-# 2. Virtual Environment
+# 2. Virtual Environment erstellen
 python3 -m venv venv
 source venv/bin/activate
 
@@ -24,12 +28,14 @@ pip install -r requirements.txt
 ./start_project.sh
 ```
 
-## Blockchain-Daten exportieren
+---
 
-Die Daten werden mit [bitcoin-etl](https://github.com/blockchain-etl/bitcoin-etl) von einem Bitcoin Full Node exportiert:
+## Datenquelle: bitcoin-etl
+
+Die Blockchain-Daten werden mit [bitcoin-etl](https://github.com/blockchain-etl/bitcoin-etl) exportiert:
 
 ```bash
-# Bitcoin-ETL installieren
+# bitcoin-etl installieren
 pip install bitcoin-etl
 
 # Daten exportieren (Beispiel: H1 2011)
@@ -54,11 +60,13 @@ blockchain_exports/
 
 ### Pfad konfigurieren
 
-In `notebooks/01_entity_clustering.ipynb`:
+In `notebooks/01_entity_clustering.ipynb`, Zelle 1:
 
 ```python
 BLOCKCHAIN_DATA_PATH = "/path/to/blockchain_exports"
 ```
+
+---
 
 ## Java installieren
 
@@ -73,18 +81,40 @@ export JAVA_HOME=$(/usr/libexec/java_home -v 11)
 sudo apt-get install openjdk-11-jdk
 ```
 
+**Pruefen:**
+```bash
+java -version
+# Sollte: openjdk version "11.x.x" zeigen
+```
+
+---
+
 ## Notebook ausfuehren
 
-1. `./start_project.sh`
-2. Browser oeffnet sich mit Jupyter
-3. `notebooks/01_entity_clustering.ipynb` oeffnen
-4. Alle Zellen ausfuehren (Shift+Enter oder "Run All")
+1. `./start_project.sh` (startet Jupyter)
+2. Browser oeffnet `notebooks/01_entity_clustering.ipynb`
+3. **Run All** (Shift+Enter durch alle Zellen)
+4. Warten (ca. 2-5 Minuten fuer H1/2011 Daten)
+
+### Output-Dateien
+
+Nach Ausfuehrung liegen in `data/`:
+
+| Datei | Inhalt |
+|-------|--------|
+| `outputs.parquet` | Alle TX Outputs (flach) |
+| `inputs.parquet` | Alle TX Inputs (flach) |
+| `utxos.parquet` | Unspent Outputs |
+| `entities.parquet` | Address -> Entity Mapping |
+
+---
 
 ## Troubleshooting
 
 | Problem | Loesung |
 |---------|---------|
-| "No batch folders found" | BLOCKCHAIN_DATA_PATH pruefen |
-| Java nicht gefunden | JAVA_HOME setzen |
-| GraphFrames-Fehler | Spark muss Internet-Zugang haben (laedt Pakete) |
-| Out of Memory | DRIVER_MEMORY erhoehen (z.B. "16g") |
+| "No batch folders found" | `BLOCKCHAIN_DATA_PATH` pruefen |
+| "Java not found" | `JAVA_HOME` setzen, Java 11 installieren |
+| GraphFrames-Fehler | Spark braucht Internet (laedt Pakete) |
+| Out of Memory | `DRIVER_MEMORY = "16g"` in Notebook |
+| Spark UI nicht erreichbar | Port 4040 evtl. belegt |
