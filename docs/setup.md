@@ -43,6 +43,16 @@ pip install -r requirements.txt
 
 ## Datenquelle: bitcoin-etl
 
+### Option A: Sample-Dataset herunterladen (empfohlen)
+
+Für den schnellen Einstieg ohne eigene Bitcoin Full Node:
+
+**[Sample-Dataset herunterladen (Google Drive)](https://drive.google.com/drive/folders/1JB1KBjBWUbQBZjS08TTd5mhTZGOaTPNg?usp=sharing)**
+
+Enthält Bitcoin-Transaktionen aus H1/2011 (~500k Transaktionen), ideal zum Testen.
+
+### Option B: Eigene Daten exportieren
+
 Die Blockchain-Daten werden mit [bitcoin-etl](https://github.com/blockchain-etl/bitcoin-etl) exportiert:
 
 ```bash
@@ -71,7 +81,7 @@ blockchain_exports/
 
 ### Pfad konfigurieren
 
-In `notebooks/01_entity_clustering.ipynb`, Zelle 1:
+In `notebooks/bitcoin_whale_intelligence.ipynb`, Zelle 1:
 
 ```python
 BLOCKCHAIN_DATA_PATH = "/path/to/blockchain_exports"
@@ -103,7 +113,7 @@ java -version
 ## Notebook ausfuehren
 
 1. `./start_project.sh` (startet Jupyter)
-2. Browser oeffnet `notebooks/01_entity_clustering.ipynb`
+2. Browser oeffnet `notebooks/bitcoin_whale_intelligence.ipynb`
 3. **Run All** (Shift+Enter durch alle Zellen)
 4. Warten (ca. 2-5 Minuten fuer H1/2011 Daten)
 
