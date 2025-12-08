@@ -322,3 +322,6 @@ benchmarks/results/
 
 # Credentials folder
 .credentials/
+
+# Claude Code
+.claude/
