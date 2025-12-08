@@ -159,9 +159,8 @@ spark-events/
 # Data Files (DO NOT COMMIT LARGE DATA)
 # ============================================================================
 
-# Processed data (can be regenerated)
-data/*.parquet
-data/checkpoints/
+# Data folder (can be regenerated from notebook)
+data/
 
 # Temporary data
 data/temp/*
