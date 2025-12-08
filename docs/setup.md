@@ -1,5 +1,16 @@
 # Setup Guide
 
+## Inhaltsverzeichnis
+
+1. [Voraussetzungen](#voraussetzungen)
+2. [Quick Start (3 Minuten)](#quick-start-3-minuten)
+3. [Datenquelle: bitcoin-etl](#datenquelle-bitcoin-etl)
+4. [Java installieren](#java-installieren)
+5. [Notebook ausführen](#notebook-ausfuehren)
+6. [Troubleshooting](#troubleshooting)
+
+---
+
 ## Voraussetzungen
 
 | Software | Version | Zweck |

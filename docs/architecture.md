@@ -2,6 +2,17 @@
 
 > Wie wir aus Rohdaten versteckte Bitcoin-Wale finden
 
+## Inhaltsverzeichnis
+
+1. [Die Rohdaten (bitcoin-etl JSON)](#1-die-rohdaten-bitcoin-etl-json)
+2. [Schritt 1: explode_outputs()](#2-schritt-1-explode_outputs)
+3. [Schritt 2: explode_inputs()](#3-schritt-2-explode_inputs)
+4. [Schritt 3: UTXO Set berechnen](#4-schritt-3-utxo-set-berechnen)
+5. [Schritt 4: Entity Clustering](#5-schritt-4-entity-clustering-common-input-ownership)
+6. [Schritt 5: Whale Detection](#6-schritt-5-whale-detection)
+7. [Die komplette Pipeline](#7-die-komplette-pipeline)
+8. [Metriken](#8-metriken-h12011-testdaten)
+
 ---
 
 ## 1. Die Rohdaten (bitcoin-etl JSON)

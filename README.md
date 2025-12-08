@@ -2,6 +2,18 @@
 
 > Versteckte Bitcoin-Wale durch Entity Clustering identifizieren
 
+## Inhaltsverzeichnis
+
+1. [Das Problem](#das-problem)
+2. [Die Lösung: Common Input Ownership](#die-loesung-common-input-ownership)
+3. [Pipeline-Übersicht](#pipeline-uebersicht)
+4. [Quick Start](#quick-start)
+5. [Projekt-Status](#projekt-status)
+6. [Dokumentation](#dokumentation)
+7. [Tech Stack](#tech-stack)
+8. [Projektstruktur](#projektstruktur)
+9. [Metriken](#metriken-h12011-testdaten)
+
 ---
 
 ## Das Problem
