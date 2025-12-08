@@ -122,12 +122,15 @@ def create_spark_session(
         .appName(app_name) \
         .master("local[*]") \
         .config("spark.driver.memory", driver_memory) \
+        .config("spark.driver.maxResultSize", "4g") \
         .config("spark.sql.adaptive.enabled", "true") \
         .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
         .config("spark.sql.adaptive.skewJoin.enabled", "true") \
         .config("spark.sql.shuffle.partitions", "200") \
         .config("spark.sql.debug.maxToStringFields", "100") \
-        .config("spark.ui.showConsoleProgress", "false")
+        .config("spark.ui.showConsoleProgress", "false") \
+        .config("spark.memory.fraction", "0.8") \
+        .config("spark.memory.storageFraction", "0.3")
 
     if enable_graphframes:
         builder = builder.config(

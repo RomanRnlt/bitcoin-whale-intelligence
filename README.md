@@ -66,7 +66,7 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    RAW[("transactions.tsv<br/>Blockchair Export<br/>382.000 TXs")]
+    RAW[("transactions/*.json<br/>bitcoin-etl Export<br/>382.000 TXs")]
 
     RAW --> EO["1. explode_outputs()<br/>Nested Array -> Zeilen"]
     RAW --> EI["2. explode_inputs()<br/>Nested Array -> Zeilen"]
@@ -96,7 +96,7 @@ flowchart TB
 ```bash
 git clone https://github.com/RomanRnlt/bitcoin-whale-intelligence.git
 cd bitcoin-whale-intelligence
-python3 -m venv venv && source venv/activate
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 ./start_project.sh
 ```
@@ -109,7 +109,7 @@ Siehe [docs/setup.md](docs/setup.md) fuer Details.
 
 | Status | Komponente | Beschreibung |
 |--------|------------|--------------|
-| Fertig | Daten laden | Blockchair TSV einlesen |
+| Fertig | Daten laden | bitcoin-etl JSON einlesen |
 | Fertig | explode_outputs() | Nested -> Flach |
 | Fertig | explode_inputs() | Nested -> Flach |
 | Fertig | UTXO-Set | Aktive Guthaben berechnen |
@@ -122,7 +122,7 @@ Siehe [docs/setup.md](docs/setup.md) fuer Details.
 
 | Dokument | Inhalt |
 |----------|--------|
-| [docs/architecture.md](docs/architecture.md) | **Pipeline mit VORHER/NACHHER Beispielen** |
+| [docs/architecture.md](docs/architecture.md) | **Pipeline mit Mermaid-Diagrammen und Erklaerungen** |
 | [docs/setup.md](docs/setup.md) | Installation und Konfiguration |
 
 ---
@@ -134,7 +134,7 @@ Siehe [docs/setup.md](docs/setup.md) fuer Details.
 | **Apache Spark** | Verteilte Verarbeitung (900M+ Transaktionen) |
 | **GraphFrames** | Connected Components Algorithmus |
 | **Parquet** | Spalten-Storage (70-90% Kompression) |
-| **Blockchair** | Bitcoin-Datenexport (TSV Format) |
+| **bitcoin-etl** | Bitcoin-Datenexport (JSON Format) |
 
 ---
 
