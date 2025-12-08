@@ -49,7 +49,8 @@
       "Bash(git ls-tree:*)",
       "Bash(head:*)",
       "Bash(git -C /Users/roman/spark_project/bitcoin-whale-intelligence branch -a)",
-      "Bash(git -C /Users/roman/spark_project/bitcoin-whale-intelligence remote -v)"
+      "Bash(git -C /Users/roman/spark_project/bitcoin-whale-intelligence remote -v)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "ask": []
