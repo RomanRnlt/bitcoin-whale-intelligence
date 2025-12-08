@@ -118,6 +118,10 @@ def create_spark_session(
         - Skew Join Handling für ungleiche Datenverteilung
         - Erhöhte Shuffle-Partitionen für große Datenmengen
     """
+    # Ivy-Logging unterdrücken (vor Spark-Start)
+    import os
+    os.environ["SPARK_SUBMIT_ARGS"] = "--conf spark.driver.extraJavaOptions=-Divy.message.logger.level=4 pyspark-shell"
+
     builder = SparkSession.builder \
         .appName(app_name) \
         .master("local[*]") \
@@ -130,7 +134,9 @@ def create_spark_session(
         .config("spark.sql.debug.maxToStringFields", "100") \
         .config("spark.ui.showConsoleProgress", "false") \
         .config("spark.memory.fraction", "0.8") \
-        .config("spark.memory.storageFraction", "0.3")
+        .config("spark.memory.storageFraction", "0.3") \
+        .config("spark.driver.extraJavaOptions", "-Divy.message.logger.level=4") \
+        .config("spark.executor.extraJavaOptions", "-Divy.message.logger.level=4")
 
     if enable_graphframes:
         builder = builder.config(
@@ -139,7 +145,7 @@ def create_spark_session(
         )
 
     spark = builder.getOrCreate()
-    spark.sparkContext.setLogLevel("WARN")
+    spark.sparkContext.setLogLevel("ERROR")
 
     return spark
 
