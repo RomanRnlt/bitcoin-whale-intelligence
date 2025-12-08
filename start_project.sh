@@ -64,14 +64,14 @@ else
     echo "Java Home: $JAVA_HOME"
 fi
 
-# 3. Check BigQuery credentials
-if [ -f .env ] && [ -f .credentials/bigquery-credentials.json ]; then
-    echo "BigQuery credentials found - Ready for live data"
+# 3. Check blockchain data
+BLOCKCHAIN_DATA="/Users/roman/spark_project/blockchain_exports"
+if [ -d "$BLOCKCHAIN_DATA" ]; then
+    echo "Blockchain data found: $BLOCKCHAIN_DATA"
 else
     echo ""
-    echo "Info: BigQuery not configured (optional)"
-    echo "Notebook will run in DEMO MODE with sample data"
-    echo "For BigQuery setup see: docs/BIGQUERY_SETUP.md"
+    echo "WARNING: Blockchain data not found at: $BLOCKCHAIN_DATA"
+    echo "Please export data with bitcoin-etl first."
     echo ""
 fi
 
@@ -86,7 +86,7 @@ if [ -n "$JAVA_HOME" ]; then
 fi
 echo "Spark: $(python -c 'import pyspark; print(pyspark.__version__)' 2>/dev/null || echo 'not installed')"
 echo ""
-echo "Open: notebooks/01_data_exploration.ipynb to get started"
+echo "Open: notebooks/01_entity_clustering.ipynb"
 echo ""
 
 # 5. Start Jupyter Notebook

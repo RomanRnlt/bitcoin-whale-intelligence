@@ -159,18 +159,9 @@ spark-events/
 # Data Files (DO NOT COMMIT LARGE DATA)
 # ============================================================================
 
-# Raw data from BigQuery (can be regenerated)
-data/raw/*
-!data/raw/.gitkeep
-
 # Processed data (can be regenerated)
-data/processed/*
-!data/processed/.gitkeep
-
-# Sample data (keep only compressed versions if needed)
-data/sample/*.parquet
-data/sample/*.csv
-!data/sample/.gitkeep
+data/*.parquet
+data/checkpoints/
 
 # Temporary data
 data/temp/*
@@ -184,25 +175,6 @@ data/tmp/*
 *.zip
 *.tar
 *.tar.gz
-
-# ============================================================================
-# Google Cloud / BigQuery
-# ============================================================================
-
-# Google Cloud credentials (NEVER COMMIT THESE!)
-*.json
-!package.json
-!package-lock.json
-credentials.json
-service-account-key.json
-google-credentials.json
-
-# Google Cloud config
-.gcloud/
-.config/gcloud/
-
-# BigQuery cache
-.bigquery/
 
 # ============================================================================
 # IDE / Editors
