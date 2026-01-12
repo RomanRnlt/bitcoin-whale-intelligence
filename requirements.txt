@@ -1,81 +1,11 @@
-# Bitcoin Whale Intelligence - Python Dependencies
+# Bitcoin Whale Intelligence - Zusätzliche Abhängigkeiten
+# ============================================================================
+# Voraussetzung: PySpark-Umgebung ist bereits eingerichtet
 # ============================================================================
 
-# ============================================================================
-# Core Data Processing
-# ============================================================================
-
-# PySpark - Distributed computing framework
-pyspark>=3.4.0
-
-# GraphFrames - Graph processing for Spark (Connected Components)
-# Note: Loaded via spark.jars.packages at runtime
-
-# ============================================================================
-# Data Manipulation & Analysis
-# ============================================================================
-
-# Pandas - DataFrame operations
-pandas>=2.0.0
-
-# NumPy - Numerical computing
-numpy>=1.24.0
-
-# PyArrow - Fast serialization for Parquet
-pyarrow>=12.0.0
-
-# ============================================================================
-# Visualization
-# ============================================================================
-
-# Matplotlib - Static plotting
+# Visualisierung
 matplotlib>=3.7.0
-
-# Seaborn - Statistical visualizations
 seaborn>=0.12.0
 
-# NetworkX - Graph visualization (optional)
-networkx>=3.0
-
-# ============================================================================
-# Jupyter & Notebooks
-# ============================================================================
-
-# Jupyter - Interactive notebooks
-jupyter>=1.0.0
-
-# IPython - Enhanced Python shell
-ipython>=8.0.0
-
-# ============================================================================
-# Utilities
-# ============================================================================
-
-# Python-dotenv - Environment variable management
-python-dotenv>=1.0.0
-
-# Tqdm - Progress bars
-tqdm>=4.65.0
-
-# ============================================================================
-# Installation Instructions
-# ============================================================================
-
-# To install all dependencies:
-#   pip install -r requirements.txt
-
-# Required: Java 11+ for PySpark
-#   macOS: brew install openjdk@11
-#   Set JAVA_HOME: export JAVA_HOME=$(/usr/libexec/java_home -v 11)
-
-# GraphFrames is loaded automatically via Spark at runtime:
-#   spark.jars.packages = graphframes:graphframes:0.8.3-spark3.5-s_2.12
-
-# ============================================================================
-# Minimal Installation
-# ============================================================================
-
-# Just to run notebooks:
-#   pip install pyspark pandas matplotlib seaborn jupyter
-
-# ============================================================================
+# System-Monitoring
+psutil>=5.9.0
