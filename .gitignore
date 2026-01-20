@@ -324,3 +324,8 @@ benchmarks/results/
 
 # Claude Code
 .claude/
+
+blockchain_exports/*
+!blockchain_exports/.gitkeep
+
+output/
