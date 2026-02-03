@@ -1,0 +1,256 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-03",
+    "notebook_path": "/Users/roman/spark_project/bitcoin-whale-intelligence/notebooks/bitcoin_whale_explained_experiment.ipynb",
+    "total_cells": 77
+  },
+  "structure": {
+    "total_cells": 77,
+    "markdown_cells": 36,
+    "code_cells": 41
+  },
+  "sections": {
+    "core_content": {
+      "name": "Core Content (Sections 1-15)",
+      "cell_range": "1-57",
+      "total_cells": 57,
+      "markdown": 26,
+      "code": 31,
+      "status": "COMPLETE"
+    },
+    "experiments": {
+      "name": "Experiments (Sections 16-25)",
+      "cell_range": "58-77",
+      "total_cells": 20,
+      "markdown": 10,
+      "code": 10,
+      "status": "COMPLETE"
+    }
+  },
+  "validation": {
+    "structure": {
+      "status": "PASS",
+      "details": "77 cells (36 MD + 41 Code)"
+    },
+    "syntax": {
+      "status": "PASS",
+      "pure_python": 32,
+      "magic_commands": 9,
+      "total_valid": 41,
+      "magic_types": [
+        "%%time"
+      ]
+    },
+    "imports": {
+      "status": "PASS",
+      "total_unique": 35,
+      "key_dependencies": [
+        "pyspark",
+        "graphframes",
+        "pandas",
+        "psutil",
+        "matplotlib",
+        "dotenv"
+      ],
+      "missing": []
+    },
+    "configuration": {
+      "status": "PASS",
+      "env_experiment_exists": true,
+      "env_base_exists": true,
+      "settings_count": 13
+    }
+  },
+  "files": {
+    "notebook": "/Users/roman/spark_project/bitcoin-whale-intelligence/notebooks/bitcoin_whale_explained_experiment.ipynb",
+    "env_experiment": "/Users/roman/spark_project/bitcoin-whale-intelligence/notebooks/.env.experiment",
+    "env_base": "/Users/roman/spark_project/bitcoin-whale-intelligence/.env"
+  },
+  "sections_mapping": [
+    {
+      "number": 1,
+      "cell": 2,
+      "header": "Setup-Anleitung",
+      "status": "existing"
+    },
+    {
+      "number": 2,
+      "cell": 3,
+      "header": "Methodische Grundlagen",
+      "status": "existing"
+    },
+    {
+      "number": 3,
+      "cell": 4,
+      "header": "1. Das Problem: Adressen sind nicht Personen",
+      "status": "existing"
+    },
+    {
+      "number": 4,
+      "cell": 5,
+      "header": "2. Das UTXO-Modell: Bitcoin hat keine \"Konten\"",
+      "status": "existing"
+    },
+    {
+      "number": 5,
+      "cell": 6,
+      "header": "3. Setup und Konfiguration",
+      "status": "existing"
+    },
+    {
+      "number": 6,
+      "cell": 9,
+      "header": "3.1 Schemas und Helper-Funktionen",
+      "status": "existing"
+    },
+    {
+      "number": 7,
+      "cell": 14,
+      "header": "4. Daten laden: JSON zu Spark DataFrames",
+      "status": "existing"
+    },
+    {
+      "number": 8,
+      "cell": 16,
+      "header": "5. Outputs extrahieren: Verschachtelt zu Flach",
+      "status": "existing"
+    },
+    {
+      "number": 9,
+      "cell": 18,
+      "header": "6. Inputs extrahieren: Welche Outputs wurden ausgegeben?",
+      "status": "existing"
+    },
+    {
+      "number": 10,
+      "cell": 20,
+      "header": "7. UTXO berechnen: Outputs MINUS Spent = Unspent",
+      "status": "existing"
+    },
+    {
+      "number": 11,
+      "cell": 22,
+      "header": "8. Common Input Ownership Heuristic",
+      "status": "existing"
+    },
+    {
+      "number": 12,
+      "cell": 25,
+      "header": "8.1 CoinJoin-Filterung",
+      "status": "existing"
+    },
+    {
+      "number": 13,
+      "cell": 28,
+      "header": "9. Graph bauen: Adressen als Netzwerk",
+      "status": "existing"
+    },
+    {
+      "number": 14,
+      "cell": 30,
+      "header": "10. Connected Components: Entities finden",
+      "status": "existing"
+    },
+    {
+      "number": 15,
+      "cell": 32,
+      "header": "11. Whale Detection: Große Besitzer finden",
+      "status": "existing"
+    },
+    {
+      "number": 16,
+      "cell": 36,
+      "header": "12. Visualisierung: Whale-Verteilung",
+      "status": "new"
+    },
+    {
+      "number": 17,
+      "cell": 38,
+      "header": "12.1 Warum reicht ein Snapshot nicht aus?",
+      "status": "new"
+    },
+    {
+      "number": 18,
+      "cell": 39,
+      "header": "13. Zeitreihen-Analyse: Whale-Balance über Zeit",
+      "status": "new"
+    },
+    {
+      "number": 19,
+      "cell": 53,
+      "header": "14. Executive Summary",
+      "status": "new"
+    },
+    {
+      "number": 20,
+      "cell": 57,
+      "header": "15. Zusammenfassung: Die komplette Pipeline",
+      "status": "new"
+    },
+    {
+      "number": 21,
+      "cell": 58,
+      "header": "16. ResourceMonitor Framework",
+      "status": "new"
+    },
+    {
+      "number": 22,
+      "cell": 60,
+      "header": "17. CPU-Skalierungsexperiment",
+      "status": "new"
+    },
+    {
+      "number": 23,
+      "cell": 62,
+      "header": "18. RAM-Skalierungsexperiment",
+      "status": "new"
+    },
+    {
+      "number": 24,
+      "cell": 64,
+      "header": "19. Daten-Skalierungsexperiment",
+      "status": "new"
+    },
+    {
+      "number": 25,
+      "cell": 66,
+      "header": "20. Kombinierte Skalierungsexperimente",
+      "status": "new"
+    },
+    {
+      "number": 26,
+      "cell": 68,
+      "header": "21. Bottleneck-Analyse",
+      "status": "new"
+    },
+    {
+      "number": 27,
+      "cell": 70,
+      "header": "22. Visualisierungen",
+      "status": "new"
+    },
+    {
+      "number": 28,
+      "cell": 72,
+      "header": "23. Skalierungsempfehlungen",
+      "status": "new"
+    },
+    {
+      "number": 29,
+      "cell": 74,
+      "header": "24. Automatische Ausführung",
+      "status": "new"
+    },
+    {
+      "number": 30,
+      "cell": 76,
+      "header": "25. Ergebnisse & Display-Funktionen",
+      "status": "new"
+    }
+  ],
+  "summary": {
+    "all_checks_passed": true,
+    "ready_for_execution": true,
+    "issues_found": 0
+  }
+}

@@ -1,0 +1,82 @@
+# =============================================================================
+# BITCOIN WHALE INTELLIGENCE - KONFIGURATION
+# =============================================================================
+# Alle Einstellungen fuer Pipeline und Experimente an einem Ort.
+# Kopiere diese Datei nach .env und passe die Werte an.
+
+# =============================================================================
+# PFADE (HIER ANPASSEN!)
+# =============================================================================
+
+# Ordner mit den Bitcoin Blockchain JSON-Dateien
+BLOCKCHAIN_DATA_PATH=../blockchain_exports
+
+# Ordner fuer Pipeline-Ergebnisse (Parquet, CSVs, etc.)
+OUTPUT_PATH=../output
+
+# =============================================================================
+# SPARK KONFIGURATION
+# =============================================================================
+
+# RAM fuer Spark Driver (z.B. "4g", "8g", "16g")
+SPARK_DRIVER_MEMORY=8g
+
+# Anzahl CPU-Cores fuer Spark (fuer normale Pipeline)
+SPARK_NUM_CORES=4
+
+# Large Dataset Mode: true = schnellere Verarbeitung, weniger Details
+LARGE_DATASET_MODE=true
+
+# =============================================================================
+# EXPERIMENT FRAMEWORK
+# =============================================================================
+# Setze EXPERIMENT_MODE=true um Experimente auszufuehren.
+
+# --- Experiment Aktivierung ---
+#EXPERIMENT_MODE=false                          # true = Experimente ausführen, false = normale Pipeline
+EXPERIMENT_MODE=true  
+
+# --- CPU-Skalierungsexperiment ---
+EXPERIMENT_CPU_CONFIGS=1,2,4,8                 # Welche Core-Anzahlen testen (kommagetrennt)
+
+# --- RAM-Skalierungsexperiment ---
+EXPERIMENT_RAM_CONFIGS=1g,2g,4g,8g             # Welche RAM-Größen testen (kommagetrennt)
+
+# --- Daten-Skalierungsexperiment ---
+EXPERIMENT_DATA_FRACTIONS=0.1,0.25,0.5,0.75,1.0  # Datenmengen als Bruchteile (kommagetrennt)
+
+# --- Kombinierte Experimente ---
+EXPERIMENT_CPU_DATA_MATRIX=2,4,8               # CPU-Konfigurationen fuer Matrix
+EXPERIMENT_RAM_DATA_MATRIX=2g,4g,8g            # RAM-Konfigurationen fuer Matrix
+EXPERIMENT_MATRIX_DATA_FRACTIONS=0.25,0.5,1.0  # Datenmengen fuer Matrix
+
+# --- Experiment-Einstellungen ---
+EXPERIMENT_REPETITIONS=1                       # Wiederholungen pro Konfiguration (1=schnell, 3=statistik)
+EXPERIMENT_WARMUP_RUNS=0                       # Warmup-Läufe vor Messung (0=aus)
+EXPERIMENT_SAMPLE_INTERVAL=0.5                 # ResourceMonitor Sample-Intervall in Sekunden
+
+# (SPARK_NUM_CORES und SPARK_DRIVER_MEMORY sind oben definiert)
+
+# --- Output-Pfade ---
+EXPERIMENT_OUTPUT_DIR=../output/experiments    # Basis-Ordner fuer Experiment-Output
+
+# =============================================================================
+# VERWENDUNG
+# =============================================================================
+#
+# 1. Kopiere diese Datei nach .env:
+#    cp .env.experiment .env
+#
+# 2. Passe die Werte nach Bedarf an
+#
+# 3. Setze EXPERIMENT_MODE=true um Experimente zu starten
+#
+# 4. Fuehre das Notebook aus:
+#    jupyter notebook bitcoin_whale_explained_experiment.ipynb
+#
+# HINWEISE:
+# - Fuer schnelle Tests: EXPERIMENT_REPETITIONS=1, wenige Konfigurationen
+# - Fuer statistische Aussagekraft: EXPERIMENT_REPETITIONS=3 oder mehr
+# - Die Matrix-Experimente koennen sehr lange dauern (CPU x RAM x Data)
+# - Achte auf ausreichend freien RAM bei grossen EXPERIMENT_RAM_CONFIGS
+# =============================================================================

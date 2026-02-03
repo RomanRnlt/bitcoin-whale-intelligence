@@ -1,0 +1,167 @@
+Aktuelle Konfiguration                                                                                                                                                           
+                                                                                                                                                                                   
+  EXPERIMENT_MODE=true                                                                                                                                                             
+                                                                                                                                                                                   
+  # CPU-Tests                                                                                                                                                                      
+  EXPERIMENT_CPU_CONFIGS=1,2,4,8          # 4 Konfigurationen                                                                                                                      
+                                                                                                                                                                                   
+  # RAM-Tests                                                                                                                                                                      
+  EXPERIMENT_RAM_CONFIGS=1g,2g,4g,8g      # 4 Konfigurationen                                                                                                                      
+                                                                                                                                                                                   
+  # Daten-Tests                                                                                                                                                                    
+  EXPERIMENT_DATA_FRACTIONS=0.1,0.25,0.5,0.75,1.0  # 5 Konfigurationen                                                                                                             
+                                                                                                                                                                                   
+  # Matrix-Tests                                                                                                                                                                   
+  EXPERIMENT_CPU_DATA_MATRIX=2,4,8        # 3 CPU-Werte                                                                                                                            
+  EXPERIMENT_MATRIX_DATA_FRACTIONS=0.25,0.5,1.0   # 3 Daten-Werte                                                                                                                  
+  EXPERIMENT_RAM_DATA_MATRIX=2g,4g,8g     # 3 RAM-Werte                                                                                                                            
+                                                                                                                                                                                   
+  EXPERIMENT_REPETITIONS=1                # 1x pro Konfiguration                                                                                                                   
+                                                                                                                                                                                   
+  ---                                                                                                                                                                              
+  Ablauf wenn run_all_experiments() ausgeführt wird                                                                                                                                
+                                                                                                                                                                                   
+  Experiment 1: CPU-Skalierung (4 Durchläufe)                                                                                                                                      
+  ┌─────┬───────┬──────────────┬───────┬─────────────────────────────────────────────────────────┐                                                                                 
+  │  #  │ Cores │     RAM      │ Daten │                      Was passiert                       │                                                                                 
+  ├─────┼───────┼──────────────┼───────┼─────────────────────────────────────────────────────────┤                                                                                 
+  │ 1   │ 1     │ 8g (default) │ 50%   │ Spark startet mit 1 Core, Pipeline läuft, Spark stoppt  │                                                                                 
+  ├─────┼───────┼──────────────┼───────┼─────────────────────────────────────────────────────────┤                                                                                 
+  │ 2   │ 2     │ 8g           │ 50%   │ Spark startet mit 2 Cores, Pipeline läuft, Spark stoppt │                                                                                 
+  ├─────┼───────┼──────────────┼───────┼─────────────────────────────────────────────────────────┤                                                                                 
+  │ 3   │ 4     │ 8g           │ 50%   │ Spark startet mit 4 Cores, Pipeline läuft, Spark stoppt │                                                                                 
+  ├─────┼───────┼──────────────┼───────┼─────────────────────────────────────────────────────────┤                                                                                 
+  │ 4   │ 8     │ 8g           │ 50%   │ Spark startet mit 8 Cores, Pipeline läuft, Spark stoppt │                                                                                 
+  └─────┴───────┴──────────────┴───────┴─────────────────────────────────────────────────────────┘                                                                                 
+  Misst: Speedup (2 Cores = 1.8x schneller?) und Effizienz (90%?)                                                                                                                  
+                                                                                                                                                                                   
+  ---                                                                                                                                                                              
+  Experiment 2: RAM-Skalierung (4 Durchläufe)                                                                                                                                      
+  ┌─────┬─────────────┬─────┬───────┬───────────────────┐                                                                                                                          
+  │  #  │    Cores    │ RAM │ Daten │   Was passiert    │                                                                                                                          
+  ├─────┼─────────────┼─────┼───────┼───────────────────┤                                                                                                                          
+  │ 1   │ 4 (default) │ 1g  │ 50%   │ Spark mit 1GB RAM │                                                                                                                          
+  ├─────┼─────────────┼─────┼───────┼───────────────────┤                                                                                                                          
+  │ 2   │ 4           │ 2g  │ 50%   │ Spark mit 2GB RAM │                                                                                                                          
+  ├─────┼─────────────┼─────┼───────┼───────────────────┤                                                                                                                          
+  │ 3   │ 4           │ 4g  │ 50%   │ Spark mit 4GB RAM │                                                                                                                          
+  ├─────┼─────────────┼─────┼───────┼───────────────────┤                                                                                                                          
+  │ 4   │ 4           │ 8g  │ 50%   │ Spark mit 8GB RAM │                                                                                                                          
+  └─────┴─────────────┴─────┴───────┴───────────────────┘                                                                                                                          
+  Misst: Ob mehr RAM die Pipeline schneller macht                                                                                                                                  
+                                                                                                                                                                                   
+  ---                                                                                                                                                                              
+  Experiment 3: Daten-Skalierung (5 Durchläufe)                                                                                                                                    
+  ┌─────┬───────┬─────┬───────┬───────────────┐                                                                                                                                    
+  │  #  │ Cores │ RAM │ Daten │ Records (ca.) │                                                                                                                                    
+  ├─────┼───────┼─────┼───────┼───────────────┤                                                                                                                                    
+  │ 1   │ 4     │ 8g  │ 10%   │ ~10.000       │                                                                                                                                    
+  ├─────┼───────┼─────┼───────┼───────────────┤                                                                                                                                    
+  │ 2   │ 4     │ 8g  │ 25%   │ ~25.000       │                                                                                                                                    
+  ├─────┼───────┼─────┼───────┼───────────────┤                                                                                                                                    
+  │ 3   │ 4     │ 8g  │ 50%   │ ~50.000       │                                                                                                                                    
+  ├─────┼───────┼─────┼───────┼───────────────┤                                                                                                                                    
+  │ 4   │ 4     │ 8g  │ 75%   │ ~75.000       │                                                                                                                                    
+  ├─────┼───────┼─────┼───────┼───────────────┤                                                                                                                                    
+  │ 5   │ 4     │ 8g  │ 100%  │ ~100.000      │                                                                                                                                    
+  └─────┴───────┴─────┴───────┴───────────────┘                                                                                                                                    
+  Misst: Wie die Laufzeit mit Datenmenge skaliert (linear? quadratisch?)                                                                                                           
+                                                                                                                                                                                   
+  ---                                                                                                                                                                              
+  Experiment 4: CPU×Daten Matrix (3×3 = 9 Durchläufe)                                                                                                                              
+  ┌─────┬───────┬───────┐                                                                                                                                                          
+  │  #  │ Cores │ Daten │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 1   │ 2     │ 25%   │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 2   │ 2     │ 50%   │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 3   │ 2     │ 100%  │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 4   │ 4     │ 25%   │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 5   │ 4     │ 50%   │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 6   │ 4     │ 100%  │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 7   │ 8     │ 25%   │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 8   │ 8     │ 50%   │                                                                                                                                                          
+  ├─────┼───────┼───────┤                                                                                                                                                          
+  │ 9   │ 8     │ 100%  │                                                                                                                                                          
+  └─────┴───────┴───────┘                                                                                                                                                          
+  ---                                                                                                                                                                              
+  Experiment 5: RAM×Daten Matrix (3×3 = 9 Durchläufe)                                                                                                                              
+  ┌─────┬─────┬───────┐                                                                                                                                                            
+  │  #  │ RAM │ Daten │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 1   │ 2g  │ 25%   │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 2   │ 2g  │ 50%   │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 3   │ 2g  │ 100%  │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 4   │ 4g  │ 25%   │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 5   │ 4g  │ 50%   │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 6   │ 4g  │ 100%  │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 7   │ 8g  │ 25%   │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 8   │ 8g  │ 50%   │                                                                                                                                                            
+  ├─────┼─────┼───────┤                                                                                                                                                            
+  │ 9   │ 8g  │ 100%  │                                                                                                                                                            
+  └─────┴─────┴───────┘                                                                                                                                                            
+  ---                                                                                                                                                                              
+  Gesamtübersicht                                                                                                                                                                  
+  ┌──────────────────┬────────────┬───────────────────────┐                                                                                                                        
+  │    Experiment    │ Durchläufe │     Pro Durchlauf     │                                                                                                                        
+  ├──────────────────┼────────────┼───────────────────────┤                                                                                                                        
+  │ CPU-Skalierung   │ 4          │ 11 Pipeline-Schritte  │                                                                                                                        
+  ├──────────────────┼────────────┼───────────────────────┤                                                                                                                        
+  │ RAM-Skalierung   │ 4          │ 11 Pipeline-Schritte  │                                                                                                                        
+  ├──────────────────┼────────────┼───────────────────────┤                                                                                                                        
+  │ Daten-Skalierung │ 5          │ 11 Pipeline-Schritte  │                                                                                                                        
+  ├──────────────────┼────────────┼───────────────────────┤                                                                                                                        
+  │ CPU×Daten Matrix │ 9          │ 11 Pipeline-Schritte  │                                                                                                                        
+  ├──────────────────┼────────────┼───────────────────────┤                                                                                                                        
+  │ RAM×Daten Matrix │ 9          │ 11 Pipeline-Schritte  │                                                                                                                        
+  ├──────────────────┼────────────┼───────────────────────┤                                                                                                                        
+  │ TOTAL            │ 31         │ 341 Pipeline-Schritte │                                                                                                                        
+  └──────────────────┴────────────┴───────────────────────┘                                                                                                                        
+  ---                                                                                                                                                                              
+  Was passiert in jedem Durchlauf?                                                                                                                                                 
+                                                                                                                                                                                   
+  1. Spark Session starten (mit X Cores, Y RAM)                                                                                                                                    
+  2. ResourceMonitor starten (misst CPU, RAM, Disk alle 0.5s)                                                                                                                      
+  3. Pipeline ausführen:                                                                                                                                                           
+     - Step 01: load_transactions (Z% der Daten samplen)                                                                                                                           
+     - Step 02: explode_outputs                                                                                                                                                    
+     - Step 03: explode_inputs                                                                                                                                                     
+     - Step 04: compute_utxo                                                                                                                                                       
+     - Step 05: enrich_clustering                                                                                                                                                  
+     - Step 06: detect_coinjoin                                                                                                                                                    
+     - Step 07: create_edges                                                                                                                                                       
+     - Step 08: connected_components (GraphFrame)                                                                                                                                  
+     - Step 09: compute_balances                                                                                                                                                   
+     - Step 10: detect_whales                                                                                                                                                      
+     - Step 11: final_aggregation                                                                                                                                                  
+  4. Metriken speichern (Dauer, CPU%, RAM GB pro Step)                                                                                                                             
+  5. Spark Session stoppen                                                                                                                                                         
+  6. 2 Sekunden warten (Ressourcen freigeben)                                                                                                                                      
+  7. Nächster Durchlauf...                                                                                                                                                         
+                                                                                                                                                                                   
+  ---                                                                                                                                                                              
+  Geschätzte Laufzeit                                                                                                                                                              
+                                                                                                                                                                                   
+  Angenommen ein Durchlauf dauert ~2-5 Minuten:                                                                                                                                    
+                                                                                                                                                                                   
+  31 Durchläufe × 3 min = ~90 Minuten = 1.5 Stunden                                                                                                                                
+                                                                                                                                                                                   
+  Tipp für schnellere Tests:                                                                                                                                                       
+  # In .env:                                                                                                                                                                       
+  EXPERIMENT_CPU_CONFIGS=2,4           # Nur 2 statt 4                                                                                                                             
+  EXPERIMENT_DATA_FRACTIONS=0.25,0.5   # Nur 2 statt 5                                                                                                                             
+  EXPERIMENT_CPU_DATA_MATRIX=2,4       # Nur 2 statt 3                                                                                                                             
+  # → Reduziert auf ~12 Durchläufe = ~30-40 Minuten 
