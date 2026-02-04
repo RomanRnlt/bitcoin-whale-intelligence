@@ -68,6 +68,7 @@ Wähle ein Dataset je nach verfügbarem Speicherplatz und gewünschter Laufzeit:
 | Dataset | Komprimiert | Entpackt | Link |
 |---------|-------------|----------|------|
 | **Klein** | ~200 MB | ~1 GB | [Download](https://drive.google.com/file/d/1cjEeRarQR2jGw10CzSCkbczFDldn_jBR/view?usp=sharing) |
+| **Mittel** | ~1 GB | ~6 GB | [Download](https://drive.google.com/file/d/1pkkTnLg2QOpS4Y3BOYGhJQ3nFgDV9k9g/view?usp=sharing) |
 | **Groß** | ~4 GB | ~20 GB | [Download](https://drive.google.com/file/d/1NTtyUTrDkFNAY1IJ3lhYB-7eiz09REYk/view?usp=sharing) |
 
 **Schritte:**
