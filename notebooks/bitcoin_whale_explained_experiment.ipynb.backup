@@ -1161,7 +1161,8 @@
     "\n",
     "\n",
     "logger.info(\"Helper-Funktionen definiert (mit Fail-Safe & Parallelisierung).\")\n",
-    "print(\"Helper-Funktionen definiert (mit Fail-Safe & Parallelisierung).\")\n"
+    "print(\"Helper-Funktionen definiert (mit Fail-Safe & Parallelisierung).\")\n",
+    ""
    ]
   },
   {
