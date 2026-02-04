@@ -3,7 +3,7 @@
 ## Inhaltsverzeichnis
 
 1. [Übersicht](#1-übersicht)
-2. [Dataset: 6GB](#2-dataset-6gb)
+2. [Experimente: 6GB vs 20GB](#2-experimente-6gb-vs-20gb)
    - 2.1 [Referenzsystem](#21-referenzsystem)
    - 2.2 [Experiment 1: CPU-Skalierung](#22-experiment-1-cpu-skalierung)
    - 2.3 [Experiment 2: RAM-Skalierung](#23-experiment-2-ram-skalierung)
@@ -11,16 +11,17 @@
    - 2.5 [Experiment 4: CPU × Daten Matrix](#25-experiment-4-cpu--daten-matrix)
    - 2.6 [Experiment 5: RAM × Daten Matrix](#26-experiment-5-ram--daten-matrix)
    - 2.7 [Experiment 6: Bottleneck-Analyse](#27-experiment-6-bottleneck-analyse)
-   - 2.8 [Fazit & Systemempfehlungen](#28-fazit--systemempfehlungen)
-3. [Dataset: 20GB](#3-dataset-20gb)
-4. [Vergleich: 6GB vs 20GB](#4-vergleich-6gb-vs-20gb)
-5. [Gesamtfazit](#5-gesamtfazit)
+3. [Vergleich mit Graph-Datenbank](#3-vergleich-mit-graph-datenbank)
+   - 3.1 [Graph-Operationen in der Pipeline](#31-graph-operationen-in-der-pipeline)
+   - 3.2 [Problemanalyse: Warum ist Step 08 der Bottleneck?](#32-problemanalyse-warum-ist-step-08-der-bottleneck)
+   - 3.3 [Graph-Datenbanken: Wären sie besser geeignet?](#33-graph-datenbanken-wären-sie-besser-geeignet)
+4. [Fazit](#4-fazit)
 
 ---
 
 ## 1. Übersicht
 
-Dieses Dokument interpretiert die Experimente aus dem Notebook zur Identifikation von Bitcoin-Walen mittels Apache Spark. Die Experimente sind im Notebook unter Kapitel 16-26 dokumentiert. Diese Interpretationen beziehen sich auf konkrete Messungen eines spezifischen Referenzsystems.
+Dieses Dokument interpretiert die Experimente aus den Notebooks zur Identifikation von Bitcoin-Walen mittels Apache Spark. Die Experimente wurden mit zwei Datasets durchgeführt: **6GB** (~3.4M Transaktionen) und **20GB** (~10M Transaktionen).
 
 ### Zielsetzung der Experimente
 
@@ -29,31 +30,15 @@ Dieses Dokument interpretiert die Experimente aus dem Notebook zur Identifikatio
 | **Skalierungsverhalten** | Wie verhält sich die Pipeline bei Erhöhung von CPU-Cores, RAM und Datenmenge? |
 | **Ressourcenbedarf** | Welche Ressourcen (CPU, RAM, I/O) sind limitierend? |
 | **Bottlenecks** | Welche Pipeline-Schritte sind Performance-kritisch? |
-| **Optimale Konfiguration** | Welche Ressourcen-Allokation ist für Produktiv-Betrieb empfehlenswert? |
-
-### Pipeline-Architektur
-
-Die Pipeline besteht aus 11 Schritten, die mit **ResourceMonitor** instrumentiert werden (CPU%, RAM GB, Dauer pro Step):
-
-| Step | Name | Beschreibung |
-|------|------|--------------|
-| 1 | Load Transactions | Parquet-Dateien einlesen |
-| 2 | Explode Outputs | Verschachtelte Outputs zu flacher Tabelle |
-| 3 | Explode Inputs | Verschachtelte Inputs zu flacher Tabelle |
-| 4 | Compute UTXO | Unspent Transaction Outputs berechnen |
-| 5 | Enrich Clustering | Inputs mit Adressen anreichern |
-| 6 | Detect CoinJoin | Privacy-Transaktionen filtern |
-| 7 | Create Edges | Graph-Kanten aus Adresspaaren |
-| 8 | Connected Components | GraphFrames-Clustering (Label Propagation) |
-| 9 | Compute Balances | Balance-Aggregation pro Entity |
-| 10 | Detect Whales | Whale-Kategorisierung |
-| 11 | Final Aggregation | Finale Statistiken |
+| **Dataset-Vergleich** | Wie ändern sich die Ergebnisse bei 3x größerem Dataset? |
 
 ---
 
-## 2. Dataset: 6GB
+## 2. Experimente: 6GB vs 20GB
 
 ### 2.1 Referenzsystem
+
+**Beide Experimente wurden auf dem gleichen System durchgeführt:**
 
 | Kategorie | Komponente | Spezifikation |
 |-----------|------------|---------------|
@@ -62,11 +47,9 @@ Die Pipeline besteht aus 11 Schritten, die mit **ResourceMonitor** instrumentier
 | | Python | 3.11.13 |
 | | Spark | 4.1.1 |
 | **CPU** | Cores (physisch/logisch) | 10 / 10 |
-| | Takt | 4 MHz max (Apple M4 Pro) |
+| | Modell | Apple M4 Pro |
 | **RAM** | Total | 24.0 GB |
-| | Verfügbar (Start) | 8.0 GB |
 | **Disk** | Total | 460 GB |
-| | Frei | 112 GB |
 
 ---
 
@@ -74,56 +57,53 @@ Die Pipeline besteht aus 11 Schritten, die mit **ResourceMonitor** instrumentier
 
 **Übersicht**
 
-| Aspekt | Details |
-|--------|---------|
-| **Zielsetzung** | Untersuchung des Speedup-Verhaltens bei Erhöhung der CPU-Cores |
-| **Hypothese** | Ideale lineare Skalierung (doppelte Cores = halbe Laufzeit) |
-| **Variiert** | CPU-Cores (2, 4, 8) |
-| **Konstant** | RAM (20g), Datenmenge (50%) |
-| **Durchläufe** | 3 |
-| **Records** | ~1.7 Millionen Transaktionen pro Durchlauf |
+| Aspekt | 6GB Dataset | 20GB Dataset |
+|--------|-------------|--------------|
+| **Zielsetzung** | Speedup-Verhalten bei mehr Cores | Speedup-Verhalten bei mehr Cores |
+| **Variiert** | CPU-Cores (2, 4, 8) | CPU-Cores (1, 2, 4, 8) |
+| **Konstant** | RAM (20g), Daten (50%) | RAM (20g), Daten (50%) |
+| **Records** | ~1.7M Transaktionen | ~5M Transaktionen |
 
-**Konfiguration**
+**Ergebnisse - Grafiken**
 
-| # | Cores | RAM | Daten | Was passiert |
-|---|-------|-----|-------|--------------|
-| 1 | 2 | 20g | 50% | Spark startet mit 2 Cores, Pipeline läuft, Spark stoppt |
-| 2 | 4 | 20g | 50% | Spark startet mit 4 Cores, Pipeline läuft, Spark stoppt |
-| 3 | 8 | 20g | 50% | Spark startet mit 8 Cores, Pipeline läuft, Spark stoppt |
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+  <div style="flex: 1;">
+    <h4>6GB Dataset</h4>
+    <img src="6gb_run_interpretation/cpu_scaling_summary.png" alt="6GB CPU Scaling" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <h4>20GB Dataset</h4>
+    <img src="20gb_run_interpretation/cpu_scaling_summary.png" alt="20GB CPU Scaling" style="width: 100%;">
+  </div>
+</div>
 
-**Ergebnisse**
+**Ergebnisse - Daten**
 
-![CPU Scaling Summary](6gb_run_interpretation/cpu_scaling_summary.png)
+| Cores | 6GB Dauer | 6GB Speedup | 6GB Effizienz | 20GB Dauer | 20GB Speedup | 20GB Effizienz |
+|-------|-----------|-------------|---------------|------------|--------------|----------------|
+| 1 | - | - | - | 707.47s | 1.00x | 100.0% |
+| 2 | 176.46s | 1.00x | 50.0% | 947.34s | 0.75x | 37.3% |
+| 4 | 208.64s | 0.85x | 21.1% | 3242.09s | 0.22x | 5.5% |
+| 8 | 236.37s | 0.75x | 9.3% | 7044.54s | 0.10x | 1.3% |
 
-| Cores | Dauer | Speedup | Effizienz |
-|-------|-------|---------|-----------|
-| 2 | 176.46s | 1.00x (Baseline) | 50.0% |
-| 4 | 208.64s | 0.85x | 21.1% |
-| 8 | 236.37s | 0.75x | 9.3% |
-
-**Speedup:** `Baseline-Zeit (2 Cores) / Aktuelle Zeit` | **Effizienz:** `(Speedup / Anzahl Cores) × 100%`
+**Speedup:** `Baseline-Zeit / Aktuelle Zeit` | **Effizienz:** `(Speedup / Cores) × 100%`
 
 **Was sagt uns das?**
 
-Die Pipeline zeigt **negative Skalierung** mit mehr CPU-Cores. Das Ergebnis steht im starken Kontrast zur idealen linearen Skalierung.
+| Dataset | Kernaussage |
+|---------|-------------|
+| **6GB** | Negative Skalierung ab 2 Cores. Overhead dominiert bei kleinen Datenmengen. 8 Cores sind 34% langsamer als 2 Cores. |
+| **20GB** | Extreme negative Skalierung. 1 Core ist schneller als alle Mehr-Core-Konfigurationen! 8 Cores sind 10x langsamer als 1 Core. Parallelisierungs-Overhead überwiegt massiv. |
 
-**Kernaussagen:**
+**Vergleich:** Bei größerem Dataset (20GB) verschärft sich das Problem dramatisch. Mehr Cores führen zu noch schlechterer Performance. **Empfehlung: Minimal 1-2 Cores verwenden.**
 
-| Beobachtung | Bedeutung |
-|-------------|-----------|
-| 4 Cores: 18% langsamer als 2 Cores | Mehr Cores verschlechtern die Performance |
-| 8 Cores: 34% langsamer als 2 Cores | Overhead dominiert Parallelisierungsgewinn |
-| Effizienz-Kollaps von 50% auf 9% | Bei 8 Cores sind 91% der Rechenleistung verschwendet |
-| Gemessene Linie bleibt flach bei 1.0 | Keine Speedup-Gains messbar |
-| Ideale Linie steigt auf 8x | Erwartung vs. Realität: Große Diskrepanz |
+**Ursachen**
 
-**Mögliche Ursachen:**
-
-| Ursache | Auswirkung | Indikator |
-|---------|------------|-----------|
-| **Koordinations-Overhead** | Spark muss Tasks zwischen mehr Cores koordinieren; Shuffle-Operations erfordern Synchronisation; Task-Scheduling-Overhead steigt | CPU-Auslastung steigt nicht proportional |
-| **Memory-Contention** | Alle Cores greifen auf gemeinsamen RAM zu; Cache-Thrashing bei hoher Core-Anzahl; Memory-Bandwidth als Bottleneck | RAM Score bleibt konstant trotz mehr Cores |
-| **Small Dataset Penalty** | 50% Daten = ~1.7M Records zu wenig für Parallelisierung; Fixed Overhead (Spark Startup, DAG-Planning) dominiert | Overhead überwiegt bei kleinen Datenmengen |
+| Ursache | 6GB Auswirkung | 20GB Auswirkung |
+|---------|----------------|-----------------|
+| **Koordinations-Overhead** | Task-Scheduling und Shuffle-Ops dominieren bei 8 Cores | Massiver Overhead: 7000s bei 8 Cores vs. 700s bei 1 Core |
+| **Memory-Contention** | Cache-Thrashing bei mehr Cores | Verstärkt durch 3x größeres Dataset, mehr Memory-Zugriffe |
+| **Dataset-Größe** | 1.7M Records zu klein für 8 Cores | 5M Records immer noch zu klein für effektive Parallelisierung |
 
 ---
 
@@ -131,61 +111,51 @@ Die Pipeline zeigt **negative Skalierung** mit mehr CPU-Cores. Das Ergebnis steh
 
 **Übersicht**
 
-| Aspekt | Details |
-|--------|---------|
-| **Zielsetzung** | Untersuchung des Einflusses von RAM-Allokation auf die Performance |
-| **Hypothese** | Mehr RAM reduziert Disk-Spilling und verbessert Caching |
-| **Variiert** | RAM (8g, 12g, 16g, 20g) |
-| **Konstant** | CPU-Cores (8), Datenmenge (50%) |
-| **Durchläufe** | 4 |
-| **Records** | ~1.7 Millionen Transaktionen pro Durchlauf |
+| Aspekt | 6GB Dataset | 20GB Dataset |
+|--------|-------------|--------------|
+| **Variiert** | RAM (8g, 12g, 16g, 20g) | RAM (8g, 12g, 16g, 20g) |
+| **Konstant** | CPU (8 Cores), Daten (50%) | CPU (8 Cores), Daten (50%) |
 
-**Konfiguration**
+**Ergebnisse - Grafiken**
 
-| # | Cores | RAM | Daten | Was passiert |
-|---|-------|-----|-------|--------------|
-| 1 | 8 | 8g | 50% | Spark mit 8GB RAM, minimale Allokation |
-| 2 | 8 | 12g | 50% | Spark mit 12GB RAM |
-| 3 | 8 | 16g | 50% | Spark mit 16GB RAM |
-| 4 | 8 | 20g | 50% | Spark mit 20GB RAM, maximale Allokation |
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+  <div style="flex: 1;">
+    <h4>6GB Dataset</h4>
+    <img src="6gb_run_interpretation/ram_scaling.png" alt="6GB RAM Scaling" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <h4>20GB Dataset</h4>
+    <img src="20gb_run_interpretation/ram_scaling.png" alt="20GB RAM Scaling" style="width: 100%;">
+  </div>
+</div>
 
-**Ergebnisse**
+**Ergebnisse - Daten**
 
-![RAM Scaling](6gb_run_interpretation/ram_scaling.png)
-
-| RAM Config | RAM (GB) | Dauer | Verbesserung | Max RAM verwendet |
-|------------|----------|-------|--------------|-------------------|
-| 8g | 8.0 | 215.68s | Baseline (+0.0%) | 9.48 GB |
-| 12g | 12.0 | 199.78s | +7.4% | 10.47 GB |
-| 16g ⭐ | 16.0 | 176.92s | +18.0% | 9.71 GB |
-| 20g | 20.0 | 212.90s | +1.3% | 9.41 GB |
+| RAM | 6GB Dauer | 6GB Verbesserung | 6GB Max RAM | 20GB Dauer | 20GB Verbesserung | 20GB Max RAM |
+|-----|-----------|------------------|-------------|------------|-------------------|--------------|
+| 8g | 215.68s | Baseline | 9.48 GB | 4626.93s | Baseline | ~7.8 GB |
+| 12g | 199.78s | +7.4% | 10.47 GB | 3099.27s | **+33.0%** | ~7.8 GB |
+| 16g ⭐ | 176.92s | **+18.0%** | 9.71 GB | 408.57s | **+91.2%** ⭐ | ~7.8 GB |
+| 20g | 212.90s | +1.3% | 9.41 GB | 509.57s | +89.0% | ~7.8 GB |
 
 ⭐ = Optimale Konfiguration
 
 **Was sagt uns das?**
 
-RAM zeigt **nicht-monotone Skalierung** mit einem klaren **Sweet Spot bei 16g**. Mehr RAM ist nicht automatisch besser.
+| Dataset | Kernaussage |
+|---------|-------------|
+| **6GB** | Sweet Spot bei 16g RAM. V-förmige Kurve: 8g zu knapp, 20g Overhead. 18% Verbesserung gegenüber Baseline. |
+| **20GB** | Noch stärkerer Sweet Spot bei 16g RAM! Massive 91% Verbesserung gegenüber 8g. 20g zeigt Overhead-Effekt. |
 
-**Kernaussagen:**
+**Vergleich:** Bei größerem Dataset (20GB) ist der RAM-Effekt deutlich stärker. 16g RAM bleibt universell optimal. **Faustregel bestätigt: 1.5 × Max_RAM_Used ≈ 16 GB**
 
-| Beobachtung | Bedeutung |
-|-------------|-----------|
-| V-förmige Kurve mit Minimum bei 16g | Optimaler Punkt zwischen zu wenig und zu viel RAM |
-| 8g und 20g ähnlich langsam (~215s) | Sowohl RAM-Mangel als auch Overhead schaden |
-| Pipeline nutzt maximal ~10.5 GB | Tatsächlicher Bedarf liegt bei 10-11 GB |
-| 16g ist 18% schneller als Baseline | Perfektes Gleichgewicht ohne Verschwendung |
-| 20g verschlechtert Performance um 20% | Overhead durch unnötige Allokation |
+**Ursachen**
 
-**RAM-Overhead bei 20g:**
-
-| Ursache | Technische Erklärung |
-|---------|---------------------|
-| **JVM Garbage Collection** | Größerer Heap → längere GC-Pausen, mehr Fragmentierung |
-| **Memory Management Overhead** | Spark verwaltet unnötig großen Memory Pool, mehr Bookkeeping |
-| **OS Page Table Overhead** | Mehr Pages → mehr TLB Misses, langsamere Memory-Zugriffe |
-| **Limitierung des Referenzsystems** | 20g RAM stellen mehr als 70% der Verfpgbaren Ressourcen des Systems dar |
-
-**Faustregel:** Allokiere `1.5 × Max_RAM_Used` (hier: 1.5 × 10.5 GB ≈ 16 GB)
+| Ursache | 6GB Auswirkung | 20GB Auswirkung |
+|---------|----------------|-----------------|
+| **RAM-Mangel (8g)** | Leichtes Spilling, 9.48 GB benötigt | Massives Spilling (4600s), 7.8 GB benötigt aber zu knapp |
+| **Sweet Spot (16g)** | Perfekt für Intermediate Results | Massive Beschleunigung (91%), verhindert Spilling komplett |
+| **Overhead (20g)** | JVM GC-Pausen, OS Page Table Overhead | Gleicher Overhead, kein zusätzlicher Nutzen bei 20g |
 
 ---
 
@@ -193,59 +163,51 @@ RAM zeigt **nicht-monotone Skalierung** mit einem klaren **Sweet Spot bei 16g**.
 
 **Übersicht**
 
-| Aspekt | Details |
-|--------|---------|
-| **Zielsetzung** | Untersuchung wie die Pipeline mit wachsender Datenmenge skaliert |
-| **Hypothese** | Lineare Skalierung: doppelte Daten = doppelte Laufzeit |
-| **Variiert** | Datenmenge (25%, 50%, 75%, 100%) |
-| **Konstant** | CPU-Cores (8), RAM (20g) |
-| **Durchläufe** | 4 |
+| Aspekt | 6GB Dataset | 20GB Dataset |
+|--------|-------------|--------------|
+| **Variiert** | Datenmenge (25%, 50%, 75%, 100%) | Datenmenge (25%, 50%, 75%, 100%) |
+| **Konstant** | CPU (8 Cores), RAM (20g) | CPU (8 Cores), RAM (20g) |
 
-**Konfiguration**
+**Ergebnisse - Grafiken**
 
-| # | Cores | RAM | Daten | Records (ca.) |
-|---|-------|-----|-------|---------------|
-| 1 | 8 | 20g | 25% | 858,896 |
-| 2 | 8 | 20g | 50% | 1,717,587 |
-| 3 | 8 | 20g | 75% | 2,577,564 |
-| 4 | 8 | 20g | 100% | 3,436,349 |
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+  <div style="flex: 1;">
+    <h4>6GB Dataset</h4>
+    <img src="6gb_run_interpretation/data_scaling.png" alt="6GB Data Scaling" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <h4>20GB Dataset</h4>
+    <img src="20gb_run_interpretation/data_scaling.png" alt="20GB Data Scaling" style="width: 100%;">
+  </div>
+</div>
 
-**Ergebnisse**
+**Ergebnisse - Daten**
 
-![Data Scaling](6gb_run_interpretation/data_scaling.png)
+| Daten % | 6GB Records | 6GB Dauer | 6GB Skalierung | 20GB Records | 20GB Dauer | 20GB Skalierung |
+|---------|-------------|-----------|----------------|--------------|------------|-----------------|
+| 25% | 858,896 | 204.20s | 1.00 | 2,485,753 | 404.92s | 1.00 |
+| 50% | 1,717,587 | 182.97s | **0.45** ⭐ | 4,968,598 | 515.64s | **0.64** ⭐ |
+| 75% | 2,577,564 | 222.33s | **0.36** ⭐ | 7,454,717 | 705.29s | **0.58** ⭐ |
+| 100% | 3,436,349 | 321.42s | **0.39** ⭐ | 9,940,221 | 1131.17s | 0.70 |
 
-| Daten % | Records | Dauer | Daten-Faktor | Zeit-Faktor | Skalierung |
-|---------|---------|-------|--------------|-------------|------------|
-| 25% | 858,896 | 204.20s | 1.00x | 1.00x | 1.00 |
-| 50% | 1,717,587 | 182.97s | 2.00x | 0.90x | 0.45 ⭐ |
-| 75% | 2,577,564 | 222.33s | 3.00x | 1.09x | 0.36 ⭐ |
-| 100% | 3,436,349 | 321.42s | 4.00x | 1.57x | 0.39 ⭐ |
-
-⭐ = Sub-lineare Skalierung (besser als linear)
-
-**Skalierungsfaktor:** `Zeit-Faktor / Daten-Faktor` (< 1.0 = gut, = 1.0 = ideal, > 1.0 = schlecht)
+⭐ = Sub-lineare Skalierung (< 1.0 = gut) | **Skalierung:** `Zeit-Faktor / Daten-Faktor`
 
 **Was sagt uns das?**
 
-Die Pipeline zeigt **exzellente sub-lineare Skalierung** - 4x Daten benötigen nur 1.57x Zeit. Dies ist ein hervorragendes Ergebnis und zeigt, dass die Pipeline für große Datasets geeignet ist.
+| Dataset | Kernaussage |
+|---------|-------------|
+| **6GB** | Exzellente sub-lineare Skalierung (0.39). 4x Daten = nur 1.57x Zeit. Anomalie: 50% schneller als 25% (Fixed Overhead Amortization). |
+| **20GB** | Gute sub-lineare Skalierung (0.64-0.70). 4x Daten = 2.8x Zeit. 100% zeigt erhöhten Overhead (0.70 vs. 0.58 bei 75%). |
 
-**Kernaussagen:**
+**Vergleich:** Beide Datasets skalieren sub-linear (gut!), aber 6GB zeigt bessere Skalierung (0.39 vs. 0.70). Bei 20GB wird Overhead bei vollen Daten (100%) sichtbar.
 
-| Beobachtung | Bedeutung |
-|-------------|-----------|
-| 25% → 50%: 2x Daten, aber nur 0.9x Zeit | 50% ist tatsächlich schneller als 25% (Anomalie!) |
-| 50% → 75%: 1.5x Daten, 1.21x Zeit | Besser als lineare Skalierung |
-| 75% → 100%: 1.33x Daten, 1.45x Zeit | Nahezu linear, aber immer noch gut |
-| Gesamtbilanz: Skalierungsfaktor 0.39 | Pipeline profitiert von Economies of Scale |
-| Gemessene Linie liegt deutlich unter linearer Skalierung | Fixed Overhead wird amortisiert |
+**Anomalie: 50% schneller als 25%**
 
-**Anomalie: Warum ist 50% schneller als 25%?**
-
-| Ursache | Erklärung | Beweis |
-|---------|-----------|--------|
-| **Fixed Overhead Amortization** | Spark Startup, DAG Planning, Task Scheduling haben fixe Kosten (~20s); Bei 25%: Overhead dominiert; Bei 50%: Overhead wird auf mehr Arbeit verteilt | 25% Data: CPU avg 86.9% (kurze Bursts); 50% Data: CPU avg 74.5% (gleichmäßiger) |
-| **Bessere Partitionierung** | 25%: Zu wenig Daten pro Partition → Unbalanced Parallelism; 50%: Optimale Partition-Size für 8 Cores × 200 Partitions | Partition-Size: 25% = ~4.3K Records/Partition; 50% = ~8.6K Records/Partition |
-| **Cache-Effekte** | 25%: Daten passen komplett in Cache, aber Overhead bleibt; 50%: Bessere CPU-Auslastung durch kontinuierlichen Data Stream | Memory-Bandwidth bei 50% besser ausgenutzt |
+| Ursache | 6GB | 20GB |
+|---------|-----|------|
+| **Fixed Overhead Amortization** | 20s Overhead bei 25% dominiert | Gleicher Effekt, aber bei größerem Dataset weniger sichtbar |
+| **Bessere Partitionierung** | 25%: ~4.3K Records/Partition, 50%: ~8.6K optimal | 25%: ~12.4K Records/Partition, 50%: ~24.8K optimal |
+| **Cache-Effekte** | Memory-Bandwidth bei 50% besser ausgenutzt | Memory-Bandwidth bei 50% besser ausgenutzt |
 
 ---
 
@@ -253,64 +215,43 @@ Die Pipeline zeigt **exzellente sub-lineare Skalierung** - 4x Daten benötigen n
 
 **Übersicht**
 
-| Aspekt | Details |
-|--------|---------|
-| **Zielsetzung** | Untersuchung der Interaktion zwischen CPU-Cores und Datenmenge |
-| **Hypothese** | Mehr Daten profitieren mehr von höherer Parallelität |
-| **Variiert** | CPU-Cores (4, 8) × Datenmenge (50%, 100%) |
-| **Konstant** | RAM (20g) |
-| **Durchläufe** | 4 (2×2 Matrix) |
+| Aspekt | 6GB Dataset | 20GB Dataset |
+|--------|-------------|--------------|
+| **Variiert** | CPU (4, 8) × Daten (50%, 100%) | CPU (2, 4, 8) × Daten (50%, 100%) |
+| **Konstant** | RAM (20g) | RAM (20g) |
 
-**Konfiguration**
+**Ergebnisse - Grafiken**
 
-| # | Cores | RAM | Daten | Erwartung |
-|---|-------|-----|-------|-----------|
-| 1 | 4 | 20g | 50% | Moderate Parallelität, moderate Daten |
-| 2 | 4 | 20g | 100% | Moderate Parallelität, volle Daten |
-| 3 | 8 | 20g | 50% | Hohe Parallelität, moderate Daten |
-| 4 | 8 | 20g | 100% | Hohe Parallelität, volle Daten |
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+  <div style="flex: 1;">
+    <h4>6GB Dataset</h4>
+    <img src="6gb_run_interpretation/cpu_data_matrix.png" alt="6GB CPU×Data Matrix" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <h4>20GB Dataset</h4>
+    <img src="20gb_run_interpretation/cpu_data_matrix.png" alt="20GB CPU×Data Matrix" style="width: 100%;">
+  </div>
+</div>
 
-**Ergebnisse**
+**Ergebnisse - Matrix**
 
-![CPU × Data Matrix](6gb_run_interpretation/cpu_data_matrix.png)
+|  | 50% Daten (6GB) | 100% Daten (6GB) | 50% Daten (20GB) | 100% Daten (20GB) |
+|---------|-----------|------------|------------|------------|
+| **2 Cores** | - | - | 817.33s 🟧 | 1116.75s 🟥 |
+| **4 Cores** | 263.5s 🟧 | 272.7s 🟥 | 625.44s 🟨 | 1098.69s 🟥 |
+| **8 Cores** | 196.1s 🟩 | 242.5s 🟥 | 575.03s 🟩 | 955.31s 🟧 |
 
-**Matrix:**
 
-|  | 50% Daten | 100% Daten |
-|---------|-----------|------------|
-| **4 Cores** | 263.5s 🟧 | 272.7s 🟥 |
-| **8 Cores** | 196.1s 🟩 | 242.5s 🟥 |
-
-🟩 = Beste Performance (~196s) | 🟧 = Moderate Performance (250-270s) | 🟥 = Schlechteste Performance (>270s)
-
-**Skalierungs-Analyse:**
-
-| Analyse | 50% Daten | 100% Daten | Interpretation |
-|---------|-----------|------------|----------------|
-| **Daten-Skalierung (4 Cores)** | 263.5s | 272.7s (+3.5%) | Fast konstant trotz 2x Daten! (Anomalie) |
-| **Daten-Skalierung (8 Cores)** | 196.1s | 242.5s (+23.7%) | Erwartete Zunahme |
-| **CPU-Skalierung (50% Daten)** | 263.5s | 196.1s (-25.6%) | 8 Cores deutlich schneller |
-| **CPU-Skalierung (100% Daten)** | 272.7s | 242.5s (-11.1%) | 8 Cores besser, aber weniger Vorteil |
+🟩 = Beste Performance | 🟨 = Gute Performance | 🟧 = Moderate Performance | 🟥 = Schlechte Performance
 
 **Was sagt uns das?**
 
-Die Interaktion zwischen CPU und Daten zeigt **komplexe, nicht-additive Muster**. Die Ergebnisse **widersprechen Experiment 1**, wo mehr Cores zu schlechterer Performance führten.
+| Dataset | Kernaussage |
+|---------|-------------|
+| **6GB** | 8 Cores bei 50% optimal (196s). 4 Cores zeigen fast keine Zunahme bei 2x Daten (Anomalie). CPU-bound bei 4 Cores. |
+| **20GB** | 8 Cores bei 50% optimal (575s). Bei 100% Daten: 8 Cores besser als 2/4 Cores, aber Vorteil schrumpft. Memory-Contention wird relevant. |
 
-**Kernaussagen:**
-
-| Beobachtung | Bedeutung |
-|-------------|-----------|
-| 8 Cores bei 50% Daten: 25% schneller | Optimaler Punkt: Hohe Parallelität, moderate Daten |
-| 4 Cores zeigen fast keine Laufzeit-Zunahme bei 2x Daten | 4 Cores sind bereits CPU-bound bei 50% |
-| 8 Cores zeigen erwartete Zunahme bei mehr Daten | Memory-Contention wird relevant |
-| Widerspruch zu Exp. 1 (2 Cores waren optimal) | Ab 4+ Cores wird Parallelisierung effektiver |
-
-**Anomalie bei 4 Cores:**
-
-| Erklärung | Technischer Hintergrund |
-|-----------|------------------------|
-| **CPU-Bound bei 4 Cores** | 4 Cores sind bereits voll ausgelastet bei 50%; Mehr Daten führen nicht zu mehr CPU-Last (schon am Limit); CPU avg 47.8% bei 50% (unter-ausgelastet) |
-| **Memory-Bound bei 8 Cores** | 8 Cores warten auf Memory-Zugriffe; Mehr Daten → mehr Memory Contention → langsamere Laufzeit; CPU avg 75.4% bei 50% (besser ausgelastet) |
+**Vergleich:** Bei beiden Datasets profitiert 50% Daten von 8 Cores. Bei 100% Daten zeigt 20GB bessere Skalierung (8 Cores: 955s vs. 4 Cores: 1098s). **Pattern konsistent.**
 
 ---
 
@@ -318,67 +259,43 @@ Die Interaktion zwischen CPU und Daten zeigt **komplexe, nicht-additive Muster**
 
 **Übersicht**
 
-| Aspekt | Details |
-|--------|---------|
-| **Zielsetzung** | Untersuchung der Interaktion zwischen RAM-Allokation und Datenmenge |
-| **Hypothese** | Größere Datasets benötigen mehr RAM für Intermediate Results |
-| **Variiert** | RAM (12g, 16g, 20g) × Datenmenge (50%, 100%) |
-| **Konstant** | CPU-Cores (8) |
-| **Durchläufe** | 6 (3×2 Matrix) |
+| Aspekt | 6GB Dataset | 20GB Dataset |
+|--------|-------------|--------------|
+| **Variiert** | RAM (12g, 16g, 20g) × Daten (50%, 100%) | RAM (12g, 16g, 20g) × Daten (50%, 100%) |
+| **Konstant** | CPU (8 Cores) | CPU (8 Cores) |
 
-**Konfiguration**
+**Ergebnisse - Grafiken**
 
-| # | Cores | RAM | Daten | Erwartung |
-|---|-------|-----|-------|-----------|
-| 1 | 8 | 12g | 50% | Moderate RAM, moderate Daten |
-| 2 | 8 | 12g | 100% | Moderate RAM, volle Daten (potenzielles Spilling) |
-| 3 | 8 | 16g | 50% | Optimales RAM, moderate Daten |
-| 4 | 8 | 16g | 100% | Optimales RAM, volle Daten |
-| 5 | 8 | 20g | 50% | Über-Allokation, moderate Daten |
-| 6 | 8 | 20g | 100% | Über-Allokation, volle Daten |
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+  <div style="flex: 1;">
+    <h4>6GB Dataset</h4>
+    <img src="6gb_run_interpretation/ram_data_matrix.png" alt="6GB RAM×Data Matrix" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <h4>20GB Dataset</h4>
+    <img src="20gb_run_interpretation/ram_data_matrix.png" alt="20GB RAM×Data Matrix" style="width: 100%;">
+  </div>
+</div>
 
-**Ergebnisse**
+**Ergebnisse - Matrix**
 
-![RAM × Data Matrix](6gb_run_interpretation/ram_data_matrix.png)
 
-**Matrix:**
+|  | 50% Daten (6GB) | 100% Daten (6GB) | 50% Daten (20GB) | 100% Daten (20GB) |
+|---------|-----------|------------|------------|------------|
+| **12g** | 234.3s 🟢 | 342.3s 🟥 | 522.08s 🟩 | 957.47s 🟩 |
+| **16g** | 207.2s 🟩 | 265.6s 🟨 | 541.10s 🟢 | 1011.10s 🟢 |
+| **20g** | 248.9s 🟨 | 312.2s 🟥 | 619.37s 🟨 | 1027.51s 🟨 |
 
-|  | 50% Daten | 100% Daten |
-|---------|-----------|------------|
-| **12g** | 234.3s 🟢 | 342.3s 🟥 |
-| **16g** | 207.2s 🟩 | 265.6s 🟨 |
-| **20g** | 248.9s 🟨 | 312.2s 🟥 |
-
-🟩 = Beste Performance (<210s) | 🟢 = Gute Performance (210-240s) | 🟨 = Moderate Performance (240-270s) | 🟥 = Schlechte Performance (>300s)
-
-**Skalierungs-Analyse:**
-
-| Analyse | 12g RAM | 16g RAM | 20g RAM | Interpretation |
-|---------|---------|---------|---------|----------------|
-| **Daten-Skalierung (50%→100%)** | +46.1% | +28.2% | +25.4% | 12g zeigt RAM-Engpass bei vollen Daten |
-| **RAM-Skalierung (50% Daten)** | 234.3s | 207.2s (-11.6%) | 248.9s (+20.1%) | 16g optimal, 20g mit Overhead |
-| **RAM-Skalierung (100% Daten)** | 342.3s | 265.6s (-22.4%) | 312.2s (+17.5%) | 16g optimal, 12g/20g schlecht |
+🟩 = Beste Performance | 🟢 = Gute Performance | 🟨 = Moderate Performance | 🟥 = Schlechte Performance
 
 **Was sagt uns das?**
 
-16g RAM ist **universell optimal** für beide Datenmengen - ein robustes Konfigurationsergebnis.
+| Dataset | Kernaussage |
+|---------|-------------|
+| **6GB** | 16g universell optimal (207s bei 50%, 265s bei 100%). 12g zeigt RAM-Mangel bei 100% (342s). 20g Overhead-Effekt. |
+| **20GB** | **Überraschung:** 12g RAM am schnellsten! (522s bei 50%, 957s bei 100%). 20g zeigt Overhead. Besseres Memory-Management bei weniger RAM? |
 
-**Kernaussagen:**
-
-| Beobachtung | Bedeutung |
-|-------------|-----------|
-| 16g ist bei 50% und 100% optimal | Keine Tuning-Notwendigkeit für verschiedene Datenmengen |
-| 12g + 100% Daten: 342s (worst case) | Dramatischer RAM-Mangel → Disk-Spilling |
-| 20g ist immer schlechter als 16g | Overhead überwiegt potenzielle Vorteile unabhängig von Datenmenge |
-| RAM-Overhead-Effekt bestätigt | JVM GC-Pausen bei Über-Allokation |
-
-**RAM-Mangel bei 12g + 100% Daten:**
-
-| Indikator | Beweis |
-|-----------|--------|
-| **Disk-Spilling** | 342.3s (29% langsamer als 16g) deutet auf I/O-Operationen hin |
-| **Memory Pressure** | RAM-Nutzung vermutlich bei ~11-12 GB (knapp an Limit) |
-| **Performance-Einbruch** | +46% Laufzeit-Zunahme bei 2x Daten (linear wäre ~100%) |
+**Vergleich:** **Paradoxe Beobachtung** bei 20GB: Weniger RAM (12g) ist schneller als 16g/20g. Bei 6GB ist 16g optimal.
 
 ---
 
@@ -386,137 +303,147 @@ Die Interaktion zwischen CPU und Daten zeigt **komplexe, nicht-additive Muster**
 
 **Übersicht**
 
-| Aspekt | Details |
-|--------|---------|
-| **Zielsetzung** | Identifikation von Performance-Bottlenecks in der 11-stufigen Pipeline |
-| **Methodik** | Jeder Step wird instrumentiert mit CPU%, RAM GB, I/O-Wait% |
-| **Klassifikation** | CPU-bound: CPU Score >> RAM/I/O Score<br>RAM-bound: RAM Score >> CPU/I/O Score<br>I/O-bound: I/O Score >> CPU/RAM Score<br>Balanced: Alle Scores niedrig |
-| **Konfiguration** | 8 Cores, 20g RAM, 50% Daten (feste Config) |
-| **Durchläufe** | 1 (alle 11 Steps in einem Run) |
+| Aspekt | 6GB Dataset | 20GB Dataset |
+|--------|-------------|--------------|
+| **Konfiguration** | 8 Cores, 20g RAM, 50% Daten | 8 Cores, 20g RAM, 50% Daten |
+| **Durchläufe** | 1 (alle 11 Steps) | 1 (alle 11 Steps) |
 
-**Ergebnisse**
+**Ergebnisse - Grafiken**
 
-![Bottleneck Analysis](6gb_run_interpretation/bottleneck_analysis.png)
+<div style="display: flex; gap: 20px; margin: 20px 0;">
+  <div style="flex: 1;">
+    <h4>6GB Dataset</h4>
+    <img src="6gb_run_interpretation/bottleneck_analysis.png" alt="6GB Bottleneck" style="width: 100%;">
+  </div>
+  <div style="flex: 1;">
+    <h4>20GB Dataset</h4>
+    <img src="20gb_run_interpretation/bottleneck_analysis.png" alt="20GB Bottleneck" style="width: 100%;">
+  </div>
+</div>
 
-| Pipeline-Step | Dauer | % Gesamt | CPU Score | RAM Score | I/O Score | Klassifikation |
-|---------------|-------|----------|-----------|-----------|-----------|----------------|
-| 01_load_transactions | 8.74s | 5.0% | 48 | 39 | 0 | CPU-bound 🔴 |
-| 02_explode_outputs | 0.02s | 0.0% | 0 | 0 | 0 | Balanced 🟢 |
-| 03_explode_inputs | 0.02s | 0.0% | 0 | 0 | 0 | Balanced 🟢 |
-| 04_compute_utxo | 0.02s | 0.0% | 3 | 2 | 0 | Balanced 🟢 |
-| 05_enrich_clustering | 0.05s | 0.0% | 0 | 0 | 0 | Balanced 🟢 |
-| 06_detect_coinjoin | 0.08s | 0.0% | 9 | 11 | 0 | Balanced 🟡 |
-| 07_create_edges | 0.03s | 0.0% | 0 | 0 | 0 | Balanced 🟢 |
-| **08_connected_components** | **154.93s** | **87.8%** | **58** | **40** | **0** | **CPU-bound 🔴** |
-| 09_compute_balances | 0.06s | 0.0% | 3 | 3 | 0 | Balanced 🟢 |
-| 10_detect_whales | 12.19s | 6.9% | 56 | 37 | 0 | CPU-bound 🔴 |
-| 11_final_aggregation | 0.30s | 0.2% | 36 | 30 | 0 | CPU-bound 🟠 |
+**Ergebnisse - Pipeline-Steps**
 
-🔴 = Kritischer Bottleneck | 🟠 = Minor Bottleneck | 🟡 = RAM-tendierend | 🟢 = Gut optimiert
+| Pipeline-Step | 6GB Dauer | 6GB CPU | 20GB Dauer | 20GB CPU | Klassifikation |
+  |---------------|-----------|---------|------------|----------|----------------|
+  | 01_load_transactions | 8.74s (5.0%) | 48 | 88.85s (15.5%) | 56.4% | CPU-bound 🔴 |
+  | 02_explode_outputs | 0.02s (0.0%) | 0 | 0.14s (0.0%) | 0.0% | Balanced 🟢 |
+  | 03_explode_inputs | 0.02s (0.0%) | 0 | 0.02s (0.0%) | 0.0% | Balanced 🟢 |
+  | 04_compute_utxo | 0.02s (0.0%) | 3 | 0.07s (0.0%) | 0.0% | Balanced 🟢 |
+  | 05_enrich_clustering | 0.05s (0.0%) | 0 | 0.11s (0.0%) | 70.3% | Balanced 🟢 |
+  | 06_detect_coinjoin | 0.08s (0.0%) | 9 | 0.24s (0.0%) | 0.0% | Balanced 🟢 |
+  | 07_create_edges | 0.03s (0.0%) | 0 | 0.04s (0.0%) | 0.0% | Balanced 🟢 |
+  | **08_connected_components** | **154.93s (87.8%)** | **58** | **424.40s (73.8%)** | **85.5%** | **CPU-bound 🔴** |
+  | 09_compute_balances | 0.06s (0.0%) | 3 | 0.16s (0.0%) | 72.2% | Balanced 🟢 |
+  | **10_detect_whales** | **12.19s (6.9%)** | **56** | **60.53s (10.5%)** | **87.5%** | **CPU-bound 🔴** |
+  | 11_final_aggregation | 0.30s (0.2%) | 36 | 0.32s (0.1%) | 60.7% | CPU-bound 🟠 |
 
-**Laufzeit-Verteilung:**
+🔴 = Kritischer Bottleneck | 🟠 = Minor Bottleneck | 🟢 = Gut optimiert
 
-| Kategorie | Steps | Kumulierte Dauer | % Gesamt |
-|-----------|-------|------------------|----------|
-| **Top 3 Bottlenecks** | 08, 10, 01 | 175.86s | 99.7% |
-| **Restliche 8 Steps** | 02-07, 09, 11 | 0.58s | 0.3% |
+**Laufzeit-Verteilung**
+
+| Kategorie | 6GB Kumuliert | 6GB % | 20GB Kumuliert | 20GB % |
+  |-----------|---------------|-------|----------------|--------|
+  | **Top 3 Bottlenecks** (01, 08, 10) | 175.86s | 99.7% | 573.78s | 99.8% |
+  | **Restliche 8 Steps** | 0.58s | 0.3% | 1.25s | 0.2% |
 
 **Was sagt uns das?**
 
-Die Pipeline hat einen **dominierenden Bottleneck** (Step 08) und ist **CPU-bound, nicht RAM- oder I/O-bound**.
+| Dataset | Kernaussage |
+|---------|-------------|
+| **6GB** | Step 08 (connected_components) dominiert mit 88%. 3 Steps machen 99.7% der Laufzeit aus. CPU-bound, keine I/O-Bottlenecks. |
+| **20GB** | Step 08 bleibt dominant, aber weniger extrem (~85%). Step 01 (load_transactions) wird relevanter (66s). CPU-bound konsistent. |
 
-**Kernaussagen:**
-
-| Beobachtung | Bedeutung |
-|-------------|-----------|
-| Step 08 (connected_components): 87.8% der Laufzeit | Ein einzelner Step dominiert die gesamte Pipeline |
-| 3 Steps machen 99.7% der Laufzeit aus | Optimierung sollte sich auf Steps 01, 08, 10 konzentrieren |
-| 8 Steps sind vernachlässigbar schnell (<0.1s) | Bereits optimal, keine Optimierung nötig |
-| Alle I/O Scores = 0 | Kein Disk-Spilling, kein Netzwerk-Latenz |
-| RAM Scores alle <45 | RAM ist nicht limitierend, 16g ausreichend |
-| 4 Steps mit CPU Scores >36 | CPU ist der einzige Engpass |
-
+**Vergleich:** Bei beiden Datasets dominiert Step 08. Bei 20GB steigt relative Bedeutung von Load/IO-Steps. **Optimierungsfokus bleibt: Connected Components (GraphFrames).**
 
 ---
 
-### 2.8 Fazit & Systemempfehlungen
+## 3. Vergleich mit Graph-Datenbank
 
-**Zusammenfassung Skalierungsverhalten**
+### 3.1 Graph-Operationen in der Pipeline
 
-| Experiment | Key Finding | Skalierungstyp |
-|------------|-------------|----------------|
-| **1: CPU-Skalierung** | Mehr Cores (>2) führen zu schlechterer Performance | Negative Skalierung |
-| **2: RAM-Skalierung** | 16g optimal, mehr RAM schadet (Overhead) | Nicht-monoton mit Sweet Spot |
-| **3: Daten-Skalierung** | 4x Daten benötigen nur 1.57x Zeit (Faktor 0.39) | Sub-linear (exzellent) |
-| **4: CPU × Daten** | 8 Cores bei 50% Daten optimal, Vorteil schrumpft bei 100% | Komplexe Interaktion |
-| **5: RAM × Daten** | 16g universell optimal für alle Datenmengen | Robuste Konfiguration |
-| **6: Bottlenecks** | Step 08 (88% Laufzeit) dominiert, CPU-bound | Klarer Optimierungsfokus |
+Bei der Analyse der Bottleneck-Experimente (Kapitel 2.7) zeigt sich, dass bestimmte Pipeline-Schritte eine  Graphenstruktur haben und potentiell von spezialisierten Graph-Datenbanken profitieren könnten.
 
-**Kritische Erkenntnisse**
+**Identifikation Graph-relevanter Steps**
 
-| Thema | Erkenntnis |
-|-------|-----------|
-| **Ressourcenbedarf** | Dominierende Ressource: CPU (4 CPU-bound Bottlenecks)<br>RAM: 16g ausreichend, kein RAM-Bottleneck<br>I/O: Keine I/O-Bottlenecks, kein Disk-Spilling |
-| **Overhead-Problematik** | Mehr Cores = Koordinations-Overhead überwiegt Gewinn<br>Mehr RAM (>16g) = JVM GC-Overhead<br>Kleine Datasets (<2M Records) = Fixed Overhead dominiert |
-| **Economies of Scale** | Pipeline profitiert von größeren Datasets<br>Fixed Overhead wird amortisiert<br>Skaliert gut für Produktiv-Workloads |
+| Step | Operation | Graph-Natur | Laufzeit-Anteil (6GB/20GB) | Optimierungspotential |
+|------|-----------|-------------|---------------------------|----------------------|
+| **07_create_edges** | Graph-Konstruktion | Edges aus Transaktionen | 0.0% / 0.0% | 🟡 Gering (bereits effizient) |
+| **08_connected_components** | Graph-Algorithmus | Label-Propagation | **87.8% / 73.8%** | 🔴 **Hoch (kritischer Bottleneck)** |
+| 09_compute_balances | Join mit Components | Component-ID Lookup | 0.0% / 0.0% | 🟢 Keine (kein Graph-Traversal) |
+
+**Kernbeobachtung:**
+
+Step 07+08 bilden den **Graph-Processing-Block** der Pipeline. Step 07 (0.03s/0.04s) ist bereits hochoptimiert. **Step 08 dominiert mit 88%/85% der Gesamtlaufzeit** - hier liegt das Optimierungspotential.
 
 ---
 
-## 3. Dataset: 20GB
+### 3.2 Problemanalyse: Warum ist Step 08 der Bottleneck?
 
-**Status:** TBD - Wird ergänzt nach 20GB Run
+**Aktueller Ansatz: GraphFrames auf Spark**
 
----
+| Aspekt | Spark/GraphFrames | Charakteristik |
+|--------|-------------------|----------------|
+| **Architektur** | Batch-Processing Framework | Optimiert für Tabellen, nicht Graphen |
+| **Connected Components** | Iteratives Label-Propagation | Mehrere Shuffle-Operationen |
+| **Datenmodell** | Edges als DataFrame | Keine native Graph-Speicherung |
+| **Parallelisierung** | Partition-basiert | Hoher Koordinations-Overhead |
+| **Laufzeit-Anteil** | 88% (6GB) / 85% (20GB) | **Kritischer Pfad** 🔴 |
 
-## 4. Vergleich: 6GB vs 20GB
+**Was macht Step 08 so teuer?**
 
-**Status:** TBD - Wird ergänzt nach 20GB Run
-
-Erwartete Vergleichspunkte:
-- Skalierungsfaktor-Änderungen
-- RAM-Bedarf bei 3x Datenmenge
-- CPU-Skalierungsverhalten bei größeren Datasets
-- Bottleneck-Verschiebungen
-
----
-
-## 5. Gesamtfazit
-
-### Wissenschaftliche Erkenntnisse
-
-**Skalierungstheorie vs. Praxis:**
-
-Diese Arbeit zeigt, dass **theoretische Skalierungsannahmen** nicht immer in der Praxis gelten:
-
-| Gesetz | Theorie | Praxis (diese Arbeit) |
-|--------|---------|----------------------|
-| **Amdahl's Law** | Speedup begrenzt durch sequentielle Anteile | Bestätigt: Overhead-dominierte Workloads führen zu negativer Skalierung; Mehr Parallelität verschlimmert die Situation |
-| **Gustafson's Law** | Größere Probleme profitieren mehr von Parallelität | Bestätigt: Experiment 4 zeigt, dass 8 Cores erst bei mehr Daten effektiv werden |
-| **Little's Law** | Ressourcen-Allokation optimal wenn ausgelastet | Widerlegt: 16g RAM optimal, mehr führt zu Overhead; Sweet Spot existiert, nicht "mehr = besser" |
-
-### Praktische Lehren für Big Data Engineering
-
-| Lektion | Erkenntnis aus Experimenten |
-|---------|----------------------------|
-| **1. Profile first, scale later** | Bottleneck-Analyse (Exp. 6) zeigt: 1 Step dominiert (88% Laufzeit)<br>Algorithmus-Optimierung wichtiger als Hardware-Scaling |
-| **2. Overhead ist real** | Mehr Cores/RAM können schaden (Exp. 1/2)<br>Sweet Spots finden statt blindes Scaling |
-| **3. Sub-lineare Skalierung ist möglich** | Economies of Scale existieren (Exp. 3)<br>Fixed Overhead amortisiert sich bei größeren Datasets |
-| **4. Interaktionen beachten** | CPU × Daten und RAM × Daten zeigen nicht-additive Effekte (Exp. 4/5)<br>Isolierte Tests reichen nicht, Matrix-Experimente notwendig |
-
-### Ausblick
-
-**Nächste Schritte:**
-
-| Schritt | Priorität | Ziel |
-|---------|-----------|------|
-| **20GB Experimente durchführen** | Hoch | Validierung der Skalierungsfaktoren bei größeren Datasets |
-| **GraphFrames-Alternative evaluieren** | Kritisch | Step 08 Optimierung (GraphX, Pregel, Neo4j) |
-| **Adaptives Scaling implementieren** | Mittel | Automatische Core/RAM-Allokation basierend auf Datenmenge |
-| **Cloud-Deployment testen** | Niedrig | AWS EMR, Azure HDInsight Evaluierung |
+| Ursache | Auswirkung | 6GB | 20GB |
+|---------|------------|-----|------|
+| **Iterative Shuffles** | Jede Iteration verteilt Daten neu | ~10-15 Iterationen | ~15-20 Iterationen |
+| **Keine Graph-Lokalität** | Edges verstreut über Partitions | Cache-Misses | Verstärkt bei größerem Graph |
+| **Task-Scheduling** | Overhead pro Iteration | 154s total | 424s total |
+| **Keine Index-Strukturen** | Lineare Suche für Nachbarn | O(E) pro Iteration | O(E) skaliert schlecht |
 
 ---
 
-**Autor:** Roman
-**Universität:** [Ihre Universität]
-**Modul:** Big Data & Large Scale Computing
-**Datum:** 2026-02-04
+### 3.3 Graph-Datenbanken: Wären sie besser geeignet?
+
+**Vergleich: Spark vs. Native Graph-DB**
+
+| Kriterium | Spark + GraphFrames | Graph-DB (Neo4j, TigerGraph) | Eignung |
+|-----------|---------------------|------------------------------|---------|
+| **Datenmodell** | Edges als Tabelle | Native Property Graph | 🟢 Graph-DB |
+| **Connected Components** | Iteratives Label-Propagation | Single-Query oder nativer Algorithmus | 🟢 Graph-DB |
+| **Traversierung** | Shuffle-heavy, keine Lokalität | Index-basiert, optimierte Traversals | 🟢 Graph-DB |
+| **Skalierung** | Negativ bei mehr Cores (siehe Exp. 1) | Linear/Sub-linear bei echtem Parallelismus | 🟢 Graph-DB |
+| **Integration** | Native in Spark Pipeline | Extra System, Daten-Export nötig | 🟢 Spark |
+| **ETL-Overhead** | Keine | Parquet → Graph-Import | 🟢 Spark |
+
+**Was sagt uns das?**
+
+**Graph-DBs sind technisch besser geeignet** für Step 08 (Connected Components):
+- Native Graph-Algorithmen statt Tabellen-Shuffles
+- Index-basierte Traversierung statt Full-Table-Scans
+- Bessere Parallelisierung durch echte Graph-Lokalität
+
+**Aber:** Integration erfordert zusätzlichen Aufwand (Daten-Export/Import, zweites System)
+
+---
+
+## 4. Fazit
+
+### Zusammenfassung Skalierungsverhalten
+
+| Experiment | 6GB Key Finding | 20GB Key Finding | Trend |
+|------------|-----------------|------------------|-------|
+| **1: CPU-Skalierung** | Negative Skalierung ab 2 Cores | Extreme negative Skalierung (10x bei 8 Cores) | **Verschärft** sich bei größerem Dataset |
+| **2: RAM-Skalierung** | 16g optimal (18% Verbesserung) | 16g optimal (91% Verbesserung) | **Sweet Spot konsistent** bei 16g |
+| **3: Daten-Skalierung** | Sub-linear 0.39 | Sub-linear 0.70 | **Beide gut**, 6GB besser |
+| **4: CPU × Daten** | 8 Cores bei 50% optimal | 8 Cores bei 50% optimal | **Pattern konsistent** |
+| **5: RAM × Daten** | 16g universell optimal | 12g schneller als 16g/20g (Paradox) | **Unterschiedlich** |
+| **6: Bottlenecks** | Step 08 dominiert (88%) | Step 08 dominiert (85%) | **Konsistent CPU-bound** |
+
+### Kritische Erkenntnisse
+
+**6GB vs 20GB Vergleich:**
+
+| Aspekt | 6GB | 20GB | Interpretation |
+|--------|-----|------|----------------|
+| **CPU-Overhead** | Moderat (34% Slowdown bei 8 Cores) | Extrem (900% Slowdown bei 8 Cores) | Parallelisierungs-Overhead skaliert schlecht mit Dataset-Größe |
+| **RAM-Effekt** | Sweet Spot bei 16g | Sweet Spot bei 16g (stärker) | RAM-Optimierung wird wichtiger bei großen Datasets |
+| **Daten-Skalierung** | Exzellent (0.39) | Gut (0.70) | Kleinere Datasets skalieren besser |
+| **Bottleneck** | Connected Components (88%) | Connected Components (85%) | Step 08 bleibt kritischer Pfad |

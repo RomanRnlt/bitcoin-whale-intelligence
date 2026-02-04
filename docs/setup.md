@@ -36,7 +36,43 @@ cd bitcoin-whale-intelligence
 # Windows: Rechtsklick auf .zip → "Alle extrahieren..."
 ```
 
-### 2. Python-Umgebung mit `uv` erstellen
+### 2. Projektstruktur - Wichtige Dateien & Ordner
+
+Eine Übersicht über die wichtigsten Verzeichnisse und Dateien:
+
+```
+bitcoin-whale-intelligence/
+│
+├── notebooks/                                                       # Jupyter Notebooks
+│   ├── bitcoin_whale_explained_experiment.ipynb                     ← Notebook ohne Outputs
+│   ├── bitcoin_whale_explained_experiment_with_outputs_6gb.ipynb    ← Notebook (6GB mit Outputs)
+│   ├── bitcoin_whale_explained_experiment_with_outputs_20gb.ipynb   ← Notebook (20GB mit Outputs)
+│   ├── .env.experiment                                              # Konfig-Template
+│   └── .env                                                         # Deine Konfiguration (nach cp .env.experiment .env)
+│
+├── docs/                                                            # Dokumentation
+│   ├── SETUP.md                                                     # Diese Anleitung
+│   ├── INTERPRETATION.md                                            ← Detaillierte Ergebnisanalyse mit Visualisierungen
+│   ├── 6gb_run_interpretation/                                      # Bilder für INTERPRETATION.md (6GB Dataset)
+│   └── 20gb_run_interpretation/                                     # Bilder für INTERPRETATION.md (20GB Dataset)
+│
+├── blockchain_exports/                                              # Dataset-Ordner (von dir erstellt)
+│   └── 2024-01-15_2024-02-04/                                       # Entpacktes Dataset
+│
+├── output/                                                          # Pipeline-Ergebnisse (automatisch erstellt)
+│   ├── *.parquet                                                    # Verarbeitete Daten
+│   ├── *.png                                                        # Visualisierungen
+│   └── experiments/                                                 # Experiment-Ergebnisse
+│
+└── pyproject.toml                                                   # Python Dependencies
+```
+
+**Wichtige Hinweise:**
+
+- **📊 Ergebnisse anschauen:** Öffne `docs/INTERPRETATION.md` **im Verzeichnis mit VS Code** (nicht im Browser), da die Datei Bilder aus `docs/6gb_run_interpretation/` und `docs/20gb_run_interpretation/` lädt
+- **🔧 Konfiguration:** Alle Einstellungen in `notebooks/.env` (Template: `notebooks/.env.experiment`)
+
+### 3. Python-Umgebung mit `uv` erstellen
 
 Dieses Projekt nutzt [uv](https://github.com/astral-sh/uv) als Package Manager (schneller als pip/poetry).
 
@@ -61,7 +97,7 @@ source venv/bin/activate
 pip install -e .
 ```
 
-### 3. Dataset herunterladen
+### 4. Dataset herunterladen
 
 Wähle ein Dataset je nach verfügbarem Speicherplatz und gewünschter Laufzeit:
 
@@ -178,7 +214,7 @@ EXPERIMENT_DATA_FRACTIONS=0.25,0.5,1.0
    ```
 
 2. **Notebook öffnen**
-   - Navigiere zu `notebooks/bitcoin_whale_explained_experiment_with_outputs_6gb.ipynb`
+   - Navigiere zu `notebooks/bitcoin_whale_explained_experiment.ipynb`
    - Klicke auf die Datei, um sie zu öffnen
 
 3. **Outline für Navigation nutzen**
@@ -208,7 +244,7 @@ Falls du lieber die klassische Jupyter-Oberfläche nutzt:
 
 ```bash
 cd notebooks
-jupyter notebook bitcoin_whale_explained_experiment_with_outputs_6gb.ipynb
+jupyter notebook bitcoin_whale_explained_experiment.ipynb
 ```
 
 Im Browser:
